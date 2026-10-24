@@ -59,10 +59,10 @@
     </button>
   </div>
   <div class="visor-foto" id="vZona">
-    <img id="vBlur" class="v-blur" alt="" aria-hidden="true" hidden>
-    <img id="vImg" alt="">
+    <img id="vBlur" class="v-blur" alt="" aria-hidden="true" draggable="false" hidden>
+    <img id="vImg" alt="" draggable="false">
     <canvas id="vCanvas" role="img" aria-label="Foto con encuadre 4:5" hidden></canvas>
-    <img id="vLogo" class="v-logo" alt="" aria-hidden="true" hidden>
+    <img id="vLogo" class="v-logo" alt="" aria-hidden="true" draggable="false" hidden>
     <button type="button" id="vPrev" class="v-nav prev" aria-label="Anterior">‹</button>
     <button type="button" id="vNext" class="v-nav next" aria-label="Siguiente">›</button>
     <div id="vChips" class="chips" role="group" aria-label="Corredores en esta foto" hidden></div>
@@ -79,10 +79,10 @@
   </div>
   <div class="visor-pie">
     <div class="acciones">
-      <a id="vDesc" class="accion primaria" href="#" download>
+      <button type="button" id="vDesc" class="accion primaria">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="giro" aria-hidden="true"></span><span class="txt">Descargar foto</span>
-      </a>
+      </button>
       <button type="button" id="vComp" class="accion secundaria">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M8 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="giro" aria-hidden="true"></span><span class="txt">Compartir</span>

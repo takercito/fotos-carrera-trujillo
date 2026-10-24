@@ -1,23 +1,35 @@
-// Logo del club en las fotos descargadas / compartidas, hecho en el navegador con un canvas (los archivos del servidor no se tocan).
-// Si CONFIG.WATERMARK_ENABLED es false o LOGO_URL está vacío, no se añade logo. Si el logo no carga, la foto sale sin él.
+// Logo del club en las fotos que salen de la web (descargar, ZIP, compartir y la foto del visor), hecho en el navegador
+// con un canvas (los archivos del servidor no se tocan). El logo es OBLIGATORIO: si no se puede cargar, no se entrega
+// ninguna foto (se reintenta y, si sigue fallando, la promesa se rechaza con err.logo = true).
 (function () {
   var cfg = window.CONFIG || {};
-  var enabled = !!(cfg.WATERMARK_ENABLED && cfg.LOGO_URL);
+  var LOGO_URL = cfg.LOGO_URL || "logo.png";
   var logoPromise = null;
 
   function loadImage(url) {
     return new Promise(function (ok, ko) {
       var img = new Image();
-      img.onload = function () { ok(img); };
+      img.onload = function () { img.naturalWidth ? ok(img) : ko(new Error("Imagen vacía " + url)); };
       img.onerror = function () { ko(new Error("No se pudo cargar " + url)); };
       img.src = url;               // misma web => el canvas no queda "contaminado"
     });
   }
+  function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
 
-  // Promesa con el logo (Image) o null si está desactivado o no carga (se reintenta la próxima vez).
+  // Promesa con el logo (Image): 3 intentos; si fallan, se rechaza (y la próxima llamada vuelve a intentarlo).
   function logo() {
-    if (!enabled) return Promise.resolve(null);
-    return logoPromise || (logoPromise = loadImage(cfg.LOGO_URL).catch(function () { logoPromise = null; return null; }));
+    if (logoPromise) return logoPromise;
+    var intento = function (n) {
+      return loadImage(LOGO_URL).catch(function (e) {
+        if (n >= 2) throw e;
+        return wait(400 * (n + 1)).then(function () { return intento(n + 1); });
+      });
+    };
+    logoPromise = intento(0).catch(function () {
+      logoPromise = null;
+      var err = new Error("No se pudo cargar el logo"); err.logo = true; throw err;
+    });
+    return logoPromise;
   }
 
   function toBlob(canvas, q) {
@@ -25,14 +37,6 @@
       if (canvas.toBlob) canvas.toBlob(function (b) { b ? ok(b) : ko(new Error("toBlob")); }, "image/jpeg", q);
       else ok(fetch(canvas.toDataURL("image/jpeg", q)).then(function (r) { return r.blob(); }));
     });
-  }
-
-  function saveBlob(blob, name) {
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url; a.download = name; a.rel = "noopener";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
 
   // Caja del logo (abajo a la derecha) para una imagen de W x H: [x, y, ancho, alto].
@@ -43,7 +47,7 @@
   }
 
   function stamp(ctx, W, H, img) {
-    if (!img) return;
+    if (!img || !img.naturalWidth) throw new Error("Sin logo");   // nunca se pinta una foto sin logo
     var b = box(W, H, img.naturalWidth, img.naturalHeight);
     ctx.save();
     ctx.globalAlpha = cfg.LOGO_OPACITY || 0.9;      // el PNG ya lleva su halo oscuro
@@ -51,9 +55,9 @@
     ctx.restore();
   }
 
-  // JPEG (Blob) de una foto con el logo abajo a la derecha. region(W, H) -> [sx, sy, sw, sh] opcional (recorte 4:5):
-  // el logo va en la esquina del recorte. Sin metadatos (el canvas no copia EXIF).
-  function render(photoUrl, region) {
+  // Foto con el logo abajo a la derecha -> {blob (JPEG), photo (Image original), logo (Image)}.
+  // region(W, H) -> [sx, sy, sw, sh] opcional (recorte 4:5): el logo va en la esquina del recorte. Sin metadatos.
+  function compose(photoUrl, region) {
     return Promise.all([loadImage(photoUrl), logo()]).then(function (r) {
       var photo = r[0], lg = r[1];
       var q = region ? region(photo.naturalWidth, photo.naturalHeight) : [0, 0, photo.naturalWidth, photo.naturalHeight];
@@ -61,13 +65,10 @@
       var ctx = c.getContext("2d");
       ctx.drawImage(photo, q[0], q[1], q[2], q[3], 0, 0, q[2], q[3]);
       stamp(ctx, q[2], q[3], lg);
-      return toBlob(c, cfg.JPEG_QUALITY || 0.9);
+      return toBlob(c, cfg.JPEG_QUALITY || 0.9).then(function (blob) { return { blob: blob, photo: photo, logo: lg }; });
     });
   }
+  function render(photoUrl, region) { return compose(photoUrl, region).then(function (r) { return r.blob; }); }
 
-  function downloadWithLogo(photoUrl, name, region) {
-    return render(photoUrl, region).then(function (blob) { saveBlob(blob, name); });
-  }
-
-  window.Watermark = { enabled: enabled, logo: logo, box: box, render: render, download: downloadWithLogo };
+  window.Watermark = { enabled: true, logo: logo, box: box, stamp: stamp, compose: compose, render: render };
 })();

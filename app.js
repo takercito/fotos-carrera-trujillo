@@ -11,7 +11,8 @@
   vEnc.checked = encuadre;
   var todas = [], lista = [], actual = -1, filtro = null, temporizador = null;
   var PREFIJO = cfg.DOWNLOAD_PREFIX || "carrera";
-  var conLogo = !!(window.Watermark && window.Watermark.enabled);   // logo del club (CSS encima; canvas al descargar)
+  var conLogo = !!window.Watermark;   // logo del club obligatorio: canvas en visor y descargas (CSS encima mientras se prepara)
+  var SIN_LOGO = "No se pudo preparar la foto, inténtalo de nuevo";
 
   function hora(t) { return t ? t.slice(11, 16) : ""; }
 
@@ -36,9 +37,8 @@
     if (!conLogo || logoMiniaturas.pedido) return;
     logoMiniaturas.pedido = true;
     window.Watermark.logo().then(function (l) {
-      if (!l) { logoMiniaturas.pedido = false; return; }
       galeria.style.setProperty("--logo", 'url("' + l.src + '")'); galeria.classList.add("con-logo");
-    });
+    }, function () { logoMiniaturas.pedido = false; });
   }
   var obsImg = "IntersectionObserver" in window ? new IntersectionObserver(function (es) {
     es.forEach(function (e) { if (e.isIntersecting) { obsImg.unobserve(e.target); cargarMini(e.target); } });
@@ -65,7 +65,7 @@
       var b = document.createElement("button");
       b.type = "button"; b.className = "miniatura"; b.dataset.i = i;
       var img = document.createElement("img");
-      img.dataset.src = "thumbs/" + encodeURIComponent(f.f); img.loading = "lazy"; img.decoding = "async";
+      img.dataset.src = "thumbs/" + encodeURIComponent(f.f); img.loading = "lazy"; img.decoding = "async"; img.draggable = false;
       img.width = 288; img.height = 360;
       if (i < 6) img.setAttribute("fetchpriority", "high");
       if (obsImg) obsImg.observe(img); else cargarMini(img);
@@ -314,7 +314,7 @@
       b.setAttribute("aria-label", "Foto " + (x.t ? hora(x.t) : x.f));
       if (x === f) { b.setAttribute("aria-current", "true"); cur = b; }
       var img = document.createElement("img");
-      img.src = "thumbs/" + encodeURIComponent(x.f); img.loading = "lazy"; img.decoding = "async"; img.alt = "";
+      img.src = "thumbs/" + encodeURIComponent(x.f); img.loading = "lazy"; img.decoding = "async"; img.alt = ""; img.draggable = false;
       b.appendChild(img);
       if (x.t) { var s = document.createElement("span"); s.className = "t"; s.textContent = hora(x.t); b.appendChild(s); }
       frag.appendChild(b);
@@ -346,28 +346,55 @@
     mostrar(j);
   });
 
+  // Fotos del visor ya compuestas con el logo (JPEG en blob:, el mismo que se descarga). Se guardan unas pocas
+  // (la actual y sus vecinas) para navegar rápido; las antiguas se liberan.
+  var compuestas = [], MAX_COMPUESTAS = 5;
+  function compuesta(f) {
+    for (var k = 0; k < compuestas.length; k++) if (compuestas[k].f === f.f) {
+      var e0 = compuestas.splice(k, 1)[0]; compuestas.push(e0); return e0.p;
+    }
+    if (!conLogo) { var er = new Error("sin watermark.js"); er.logo = true; return Promise.reject(er); }
+    var e = { f: f.f };
+    e.p = window.Watermark.compose("fotos/" + encodeURIComponent(f.f)).then(function (r) {
+      r.url = URL.createObjectURL(r.blob); return r;
+    });
+    e.p.catch(function () { var j = compuestas.indexOf(e); if (j !== -1) compuestas.splice(j, 1); });   // se reintenta la próxima vez
+    compuestas.push(e);
+    while (compuestas.length > MAX_COMPUESTAS) compuestas.shift().p.then(function (r) {
+      if (vImg.getAttribute("src") !== r.url) URL.revokeObjectURL(r.url);
+    }, function () {});
+    return e.p;
+  }
+
   var archivoListo = null;   // File de la foto actual para compartir (preparado al cargar la foto)
+  var vFoto = null, vTurno = 0;   // composición mostrada en el visor {blob, url, photo, logo}
   function mostrar(i) {
     if (i < 0 || i >= vLista.length) return;
     actual = i;
     if (vLista === lista) while (i >= pintadas - 4 && pintadas < lista.length) masFotos();
-    var f = vLista[i];
-    archivoListo = null;
+    var f = vLista[i], turno = ++vTurno;
+    archivoListo = null; vFoto = null;
     selK = elegirCorredor(f);
     vBlur.src = "thumbs/" + encodeURIComponent(f.f); vBlur.hidden = false;
-    vImg.classList.add("cargando"); vLogo.hidden = true;
-    vImg.src = "fotos/" + encodeURIComponent(f.f);
+    vImg.classList.add("cargando"); vImg.removeAttribute("src"); vImg.dataset.f = f.f;
+    // la foto solo se enseña ya con el logo; mientras, miniatura borrosa + logo superpuesto (CSS)
+    compuesta(f).then(function (r) {
+      if (turno !== vTurno || visor.hidden) return;
+      vFoto = r; vImg.src = r.url;
+      [i - 1, i + 1].forEach(function (j) { if (vLista[j]) compuesta(vLista[j]).catch(function () {}); });
+    }, function (err) {
+      if (turno !== vTurno || visor.hidden) return;
+      avisar(err && err.logo ? SIN_LOGO : "No se ha podido cargar la foto. Revisa tu conexión.");
+    });
     vTit.textContent = f.d && f.d.length ? "Dorsal " + f.d.join(" · ") : "Sin dorsal";
     vImg.alt = vTit.textContent + (f.t ? ", " + hora(f.t) : "") + " (" + (i + 1) + " de " + vLista.length + ")";
     vCanvas.setAttribute("aria-label", vImg.alt + ", encuadre 4:5");
     vSub.textContent = (i + 1) + " / " + vLista.length + (f.t ? " · " + hora(f.t) : "");
     vEncLabel.classList.toggle("no", !cropDe(f));
     vCanvas.hidden = true; vImg.hidden = false;
-    vDesc.href = "fotos/" + encodeURIComponent(f.f);
-    vDesc.setAttribute("download", nombreDescarga(f));
     vPrev.disabled = i === 0; vNext.disabled = i === vLista.length - 1;
     pintarTira(f);
-    [i - 1, i + 1].forEach(function (j) { if (vLista[j]) new Image().src = "fotos/" + encodeURIComponent(vLista[j].f); });
+    colocarLogo();
   }
 
   // ---------- encuadre (recorte sugerido, opcional; se hace en el navegador)
@@ -382,23 +409,28 @@
   }
   function pintarRecorte() {
     var c = recorteActivo();
-    if (!c || !vImg.complete || !vImg.naturalWidth) { vCanvas.hidden = true; vImg.hidden = false; colocarLogo(); return; }
-    var q = rect45(c, vImg.naturalWidth, vImg.naturalHeight), sx = q[0], sy = q[1], sw = q[2], sh = q[3];
+    if (!c || !vFoto || vImg.classList.contains("cargando")) { vCanvas.hidden = true; vImg.hidden = false; colocarLogo(); return; }
+    // recorte de la foto original (no de la compuesta) con el logo en la esquina del recorte
+    var ph = vFoto.photo, q = rect45(c, ph.naturalWidth, ph.naturalHeight), sx = q[0], sy = q[1], sw = q[2], sh = q[3];
     vCanvas.width = sw; vCanvas.height = sh;
-    vCanvas.getContext("2d").drawImage(vImg, sx, sy, sw, sh, 0, 0, sw, sh);
+    var ctx = vCanvas.getContext("2d");
+    ctx.drawImage(ph, sx, sy, sw, sh, 0, 0, sw, sh);
+    try { window.Watermark.stamp(ctx, sw, sh, vFoto.logo); }
+    catch (e) { vCanvas.hidden = true; vImg.hidden = false; colocarLogo(); return; }   // sin logo no se enseña el recorte
     vCanvas.hidden = false; vImg.hidden = true;
     colocarLogo();
   }
 
-  // ---------- logo del club superpuesto en el visor (CSS, no toca la foto): abajo a la derecha de la foto visible
-  // (la caja real de la imagen, no el hueco con bandas negras), por encima de la tira de fotos si está.
+  // ---------- logo del club superpuesto (CSS) solo como marcador mientras se prepara la foto con el logo:
+  // abajo a la derecha de la miniatura borrosa (su caja real, sin las bandas negras), por encima de la tira si está.
+  // Cuando la foto compuesta (con el logo dentro) está en pantalla, se oculta.
   var vLogo = $("vLogo"), rafLogo = 0;
   function colocarLogo() {
     rafLogo = 0;
     if (!conLogo || visor.hidden) return;
-    var lienzo = !vCanvas.hidden, el = lienzo ? vCanvas : vImg;
-    var nw = lienzo ? vCanvas.width : vImg.naturalWidth, nh = lienzo ? vCanvas.height : vImg.naturalHeight;
-    if (!vLogo.naturalWidth || !nw || !nh || vImg.classList.contains("cargando")) { vLogo.hidden = true; return; }
+    if (vFoto && !vImg.classList.contains("cargando")) { vLogo.hidden = true; return; }
+    var el = vBlur, nw = vBlur.naturalWidth, nh = vBlur.naturalHeight;
+    if (!vLogo.naturalWidth || !nw || !nh || vBlur.hidden) { vLogo.hidden = true; return; }
     var z = zona.getBoundingClientRect(), r = el.getBoundingClientRect();
     var s = Math.min(r.width / nw, r.height / nh), cw = nw * s, ch = nh * s;   // object-fit: contain
     var x = r.left - z.left + (r.width - cw) / 2, y = r.top - z.top + (r.height - ch) / 2;
@@ -416,13 +448,22 @@
   function cargarLogoVisor() {   // se pide al abrir el visor por primera vez
     if (!conLogo || vLogo.getAttribute("src")) return;
     vLogo.onload = colocarLogo;
+    vLogo.onerror = function () { vLogo.removeAttribute("src"); };   // se reintenta al volver a abrir
     vLogo.src = cfg.LOGO_URL;
   }
-  vImg.addEventListener("load", function () { vImg.classList.remove("cargando"); vBlur.hidden = true; pintarRecorte(); prepararCompartir(); });
+  vImg.addEventListener("load", function () {
+    if (!vFoto || vImg.getAttribute("src") !== vFoto.url) return;
+    vImg.classList.remove("cargando"); vBlur.hidden = true; pintarRecorte(); prepararCompartir();
+  });
   vImg.addEventListener("error", function () {
     if (visor.hidden || !vImg.getAttribute("src")) return;
     avisar("No se ha podido cargar la foto. Revisa tu conexión.");
   });
+  vBlur.addEventListener("load", recolocarLogo);
+  // sin menú "Guardar imagen" (clic derecho / pulsación larga) ni arrastre en fotos y miniaturas
+  function enFoto(t) { return t && t.closest && t.closest(".miniatura, #vZona"); }
+  document.addEventListener("contextmenu", function (e) { if (enFoto(e.target)) e.preventDefault(); });
+  document.addEventListener("dragstart", function (e) { if (enFoto(e.target)) e.preventDefault(); });
   vEnc.addEventListener("change", function () {
     encuadre = vEnc.checked;
     try { localStorage.setItem("encuadre", encuadre ? "1" : "0"); } catch (e) {}
@@ -434,17 +475,13 @@
     a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
-  function descargarOriginal(href, nombre) {   // último recurso: el archivo tal cual
-    var a = document.createElement("a");
-    a.href = href; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
-  }
-  // Blob JPEG de una foto (completa o recortada con su encuadre) con el logo abajo a la derecha (watermark.js).
-  // Sin logo ni recorte: el archivo tal cual.
+  // Blob JPEG de una foto (completa o recortada con su encuadre) SIEMPRE con el logo abajo a la derecha (watermark.js).
+  // Nunca el archivo original: si el logo no carga, la promesa se rechaza (err.logo).
   function blobDeFoto(f, recortar) {
-    var url = "fotos/" + encodeURIComponent(f.f);
     var cr = recortar ? cropDe(f) : null;
-    if (cr || conLogo) return window.Watermark.render(url, cr ? function (w, h) { return rect45(cr, w, h); } : null);
-    return fetch(url).then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); });
+    if (!cr) return compuesta(f).then(function (r) { return r.blob; });   // la misma que se ve en el visor
+    if (!conLogo) { var er = new Error("sin watermark.js"); er.logo = true; return Promise.reject(er); }
+    return window.Watermark.render("fotos/" + encodeURIComponent(f.f), function (w, h) { return rect45(cr, w, h); });
   }
   function nombreArchivo(f, recortado) { return nombreDescarga(f).replace(/\.jpg$/i, recortado && cropDe(f) ? "_encuadre.jpg" : ".jpg"); }
 
@@ -465,7 +502,9 @@
   }
   function cerrarUI() {
     visor.hidden = true; document.body.classList.remove("bloqueado"); bloquearFondo(false);
-    vImg.removeAttribute("src"); aviso.hidden = true; vLogo.hidden = true;
+    vImg.removeAttribute("src"); vFoto = null; vTurno++; aviso.hidden = true; vLogo.hidden = true;
+    compuestas.forEach(function (e) { e.p.then(function (r) { URL.revokeObjectURL(r.url); }, function () {}); });   // liberar memoria
+    compuestas = [];
     if (origen && origen.isConnected) origen.focus({ preventScroll: true });   // volver a la miniatura abierta
     origen = null;
   }
@@ -510,13 +549,11 @@
   });
 
   // ---------- Descargar foto
-  vDesc.addEventListener("click", function (e) {
+  vDesc.addEventListener("click", function () {
     var f = vLista[actual], rec = !!recorteActivo();
-    if (!f || !(rec || conLogo)) return;   // descarga directa del archivo completo
-    e.preventDefault();   // JPEG generado aquí: logo abajo a la derecha (del recorte 4:5 si hay Encuadre)
-    ocupado(vDesc, true, "Preparando…");
-    var href = vDesc.href, nombre = vDesc.getAttribute("download");
-    blobDeFoto(f, rec).then(function (b) { guardarBlob(b, nombreArchivo(f, rec)); }, function () { descargarOriginal(href, nombre); })
+    if (!f || vDesc.hasAttribute("aria-busy")) return;
+    ocupado(vDesc, true, "Preparando…");   // JPEG generado aquí: logo abajo a la derecha (del recorte 4:5 si hay Encuadre)
+    blobDeFoto(f, rec).then(function (b) { guardarBlob(b, nombreArchivo(f, rec)); }, function () { avisar(SIN_LOGO); })
       .then(function () { ocupado(vDesc, false); });
   });
 
@@ -539,7 +576,7 @@
       return new File([b], nombreArchivo(f, rec), { type: "image/jpeg" });
     });
     p.foto = f; p.rec = rec; p.k = selK; archivoListo = p;
-    p.then(function (file) { if (archivoListo === p) p.file = file; }, function () {});
+    p.then(function (file) { if (archivoListo === p) p.file = file; }, function () { p.fallo = true; });
   }
   function copiarEnlace(u) {
     var hecho = function () { avisar("Enlace copiado"); };
@@ -551,7 +588,7 @@
     var texto = "Fotos carrera infantil · Trujillo · 24/10/2026", u = urlSitio(f);
     var rec = !!recorteActivo();
     if (puedeCompartirArchivos()) {
-      var listo = archivoListo && archivoListo.foto === f && archivoListo.rec === rec && archivoListo.k === selK ? archivoListo : null;
+      var listo = archivoListo && !archivoListo.fallo && archivoListo.foto === f && archivoListo.rec === rec && archivoListo.k === selK ? archivoListo : null;
       if (listo && listo.file) {   // compartir ya, dentro del gesto del usuario
         navigator.share({ files: [listo.file], text: texto + " " + u }).catch(function (err) {
           if (err && err.name === "NotAllowedError") avisar("No se pudo compartir. Prueba con Descargar foto.");
@@ -562,10 +599,11 @@
       if (!listo) { prepararCompartir(); listo = archivoListo; }
       listo.then(function (file) {
         ocupado(vComp, false);
-        return navigator.share({ files: [file], text: texto + " " + u });
-      }).catch(function (err) {
-        ocupado(vComp, false);
-        if (err && err.name === "NotAllowedError") avisar("Listo: toca Compartir otra vez");
+        return navigator.share({ files: [file], text: texto + " " + u }).catch(function (err) {
+          if (err && err.name === "NotAllowedError") avisar("Listo: toca Compartir otra vez");
+        });
+      }, function () {   // sin logo no se comparte la foto
+        ocupado(vComp, false); avisar(SIN_LOGO);
       });
       return;
     }
@@ -615,7 +653,7 @@
           });
       }
       return zipYGuardar(files, f).then(function () { ocupado(vTodas, false); });
-    }).catch(function () { ocupado(vTodas, false); avisar("No se pudieron preparar las fotos. Inténtalo de nuevo."); });
+    }).catch(function () { ocupado(vTodas, false); avisar("No se pudieron preparar las fotos, inténtalo de nuevo"); });
   });
   function zipYGuardar(files, f) {
     vTodas.setAttribute("aria-busy", "true"); vTodas.querySelector(".txt").textContent = "Creando ZIP…";

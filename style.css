@@ -226,3 +226,6 @@ body.bloqueado{overflow:hidden}
 .v-logo[hidden]{display:none}
 .galeria.con-logo .miniatura::after{content:"";position:absolute;right:5px;bottom:5px;width:26%;height:26%;
   background:var(--logo) right bottom/contain no-repeat;opacity:.9;pointer-events:none}
+/* ---- logo obligatorio: sin menú de "guardar imagen", arrastre ni selección en fotos y miniaturas ---- */
+.miniatura img,.rel-mini img,.visor-foto img,.visor-foto canvas{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+.miniatura,.rel-mini,.visor-foto{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}

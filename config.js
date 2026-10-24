@@ -1,6 +1,6 @@
 // Configuración del sitio.
 window.CONFIG = {
-  WATERMARK_ENABLED: true,    // logo del club: superpuesto en el visor/miniaturas y añadido al descargar o compartir
+  WATERMARK_ENABLED: true,    // logo del club OBLIGATORIO en toda foto que sale de la web (watermark.js no permite quitarlo)
   LOGO_URL: "logo.png",       // PNG blanco con transparencia (generado con make_logo_web.py)
   LOGO_WIDTH: 0.2,            // ancho del logo = 20 % del ancho de la foto (o del recorte 4:5)
   LOGO_MARGIN: 0.022,         // margen a la esquina inferior derecha
