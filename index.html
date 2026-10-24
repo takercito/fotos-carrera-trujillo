@@ -21,6 +21,15 @@
     <button type="button" id="limpiar" class="limpiar" aria-label="Borrar búsqueda" hidden>×</button>
   </form>
   <p id="estado" class="estado" role="status" aria-live="polite">Cargando fotos…</p>
+  <div id="reloj" class="reloj" role="slider" tabindex="0" aria-label="Ir a la hora" aria-orientation="horizontal">
+    <div class="r-area" id="rArea">
+      <svg class="r-hist" id="rHist" preserveAspectRatio="none" aria-hidden="true" focusable="false"></svg>
+      <div class="r-linea" aria-hidden="true"></div>
+      <div class="r-pulgar" id="rPulgar" aria-hidden="true"></div>
+      <div class="r-marcas" id="rMarcas" aria-hidden="true"></div>
+      <div class="r-burbuja" id="rBurbuja" aria-hidden="true" hidden></div>
+    </div>
+  </div>
 </header>
 
 <main>

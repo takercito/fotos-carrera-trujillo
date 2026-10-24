@@ -194,3 +194,29 @@ body.bloqueado{overflow:hidden}
 }
 .galeria[hidden]{display:none}
 .boton{font-family:inherit}
+
+/* ---- barra de hora (scrubber): arrastra para saltar a cualquier momento ---- */
+.reloj{position:relative;height:44px;margin:2px -4px -6px;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;outline:none;background:#fff}
+.reloj:not(.listo){visibility:hidden}
+.reloj[hidden]{display:none}
+.reloj:focus-visible{box-shadow:inset 0 0 0 3px var(--primario)}
+.r-area{position:absolute;left:12px;right:12px;top:0;bottom:0}
+.r-hist{position:absolute;left:0;width:100%;top:5px;height:23px;display:block;fill:#2bb3a3;opacity:.32}
+.r-linea{position:absolute;left:0;right:0;top:28px;height:2px;border-radius:2px;background:#d3dae0}
+.r-pulgar{position:absolute;top:3px;height:28px;width:3px;margin-left:-1.5px;border-radius:2px;background:var(--primario);left:0;will-change:left}
+.r-pulgar::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;
+  background:#fff;border:3px solid var(--primario);box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .12s}
+.reloj.activo .r-pulgar::after{transform:scale(1.35)}
+.r-marcas{position:absolute;left:0;right:0;top:30px;height:14px}
+.r-marcas span{position:absolute;top:0;transform:translateX(-50%);font-size:.68rem;line-height:14px;font-weight:600;color:var(--suave);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.r-marcas span::before{content:"";position:absolute;left:50%;top:-3px;width:1px;height:3px;background:#aab2bb}
+.r-burbuja{position:absolute;bottom:calc(100% + 4px);left:0;transform:translateX(-50%);background:var(--primario);color:#fff;
+  font-size:.95rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;padding:6px 12px;border-radius:999px;
+  box-shadow:0 4px 14px rgba(15,118,110,.35),0 1px 3px rgba(0,0,0,.2);pointer-events:none;z-index:2}
+.r-burbuja[hidden]{display:none}
+.r-burbuja small{font-weight:600;font-size:.82rem;opacity:.92}
+.miniatura.destino{outline:3px solid var(--acento-claro);outline-offset:2px}
+@media (min-width:600px){.reloj{margin:4px 0 -4px}}
+@media (prefers-reduced-motion:reduce){.r-pulgar::after{transition:none}}

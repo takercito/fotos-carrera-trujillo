@@ -40,9 +40,9 @@
     masFotos();
   }
 
-  function masFotos() {
+  function masFotos(hasta) {   // hasta: pintar al menos hasta ese índice (salto con la barra de hora)
     if (pintadas >= lista.length || galeria.hidden) return;
-    var frag = document.createDocumentFragment(), fin = Math.min(lista.length, pintadas + (pintadas ? LOTE : LOTE_INICIAL));
+    var frag = document.createDocumentFragment(), fin = Math.min(lista.length, Math.max(+hasta || 0, pintadas + (pintadas ? LOTE : LOTE_INICIAL)));
     for (var i = pintadas; i < fin; i++) {
       var f = lista[i];
       if (cabeceras) {
@@ -78,7 +78,7 @@
 
   function verTodas() {
     filtro = null; vacio.hidden = true; galeria.hidden = false;
-    pintar(todas, true);
+    pintar(todas, true); reloj.hidden = false; seguirScroll();
     estado.innerHTML = "<b>" + todas.length + " fotos</b> · ordenadas por hora";
   }
 
@@ -87,7 +87,7 @@
     limpiar.hidden = !input.value;
     if (!v) { if (filtro !== null) verTodas(); actualizarHash(""); return; }
     var n = parseInt(v, 10);
-    filtro = n;
+    filtro = n; reloj.hidden = true; burbuja.hidden = true;
     var res = todas.filter(function (f) { return f.d && f.d.indexOf(n) !== -1; });
     if (!res.length) {
       galeria.hidden = true; galeria.textContent = ""; lista = [];
@@ -101,6 +101,125 @@
     }
     if (!desdeHash) actualizarHash(String(n));
   }
+
+  // ---------- barra de hora (scrubber): eje = hora de captura de la primera a la última foto
+  // Arrastrar / tocar / teclado elige un minuto; al soltar, la galería salta a la primera foto a partir de esa hora.
+  var reloj = $("reloj"), rArea = $("rArea"), rHist = $("rHist"), pulgar = $("rPulgar"), marcas = $("rMarcas"), burbuja = $("rBurbuja");
+  var cabecera = document.querySelector("header.top");
+  var minutos = [], porMin = [], rMin = 0, rMax = 1, valor = 0, arrastre = null, tTeclado = null, quietoHasta = 0, rafScroll = 0;
+  var sinMovimiento = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function aMin(t) { return t ? +t.slice(11, 13) * 60 + +t.slice(14, 16) : NaN; }
+  function hhmm(m) { return ("0" + Math.floor(m / 60)).slice(-2) + ":" + ("0" + m % 60).slice(-2); }
+  function fotosEn(m) { return (porMin[m - rMin] || 0) + (porMin[m - rMin + 1] || 0); }   // fotos en ese minuto y el siguiente
+  function textoFotos(n) { return n ? n + (n === 1 ? " foto" : " fotos") : "sin fotos"; }
+  function frac(m) { return rMax > rMin ? (m - rMin) / (rMax - rMin) : 0; }
+  function prepararReloj() {
+    minutos = todas.map(function (f) { return aMin(f.t); });
+    var vale = minutos.filter(function (m) { return !isNaN(m); });
+    if (vale.length < 2) { reloj.hidden = true; return; }
+    rMin = Math.min.apply(null, vale); rMax = Math.max.apply(null, vale);
+    if (rMax === rMin) rMax++;
+    porMin = []; for (var k = 0; k <= rMax - rMin + 1; k++) porMin.push(0);
+    vale.forEach(function (m) { porMin[m - rMin]++; });
+    // histograma: barras de 2 min, escala lineal
+    var ns = "http://www.w3.org/2000/svg", w = rMax - rMin, cubos = [], tope = 1;
+    for (k = 0; k <= w; k += 2) { var c = porMin[k] + (porMin[k + 1] || 0); cubos.push(c); tope = Math.max(tope, c); }
+    rHist.setAttribute("viewBox", "0 0 " + (w + 1) + " " + tope); rHist.textContent = "";
+    cubos.forEach(function (c, i) {
+      if (!c) return;
+      var r = document.createElementNS(ns, "rect");
+      r.setAttribute("x", i * 2); r.setAttribute("width", 1.6); r.setAttribute("y", tope - c); r.setAttribute("height", c);
+      rHist.appendChild(r);
+    });
+    reloj.setAttribute("aria-valuemin", rMin); reloj.setAttribute("aria-valuemax", rMax);
+    pintarMarcas(); fijarValor(rMin); reloj.classList.add("listo");
+  }
+  function pintarMarcas() {   // horas redondas que quepan (>= 46 px por etiqueta)
+    var ancho = rArea.clientWidth || 300, span = rMax - rMin, pasos = [5, 10, 15, 30, 60, 120, 240], paso = pasos[pasos.length - 1];
+    var hueco = Math.max(46, ancho / 12);   // en escritorio, menos marcas
+    for (var k = 0; k < pasos.length; k++) if (span / pasos[k] * hueco <= ancho) { paso = pasos[k]; break; }
+    marcas.textContent = "";
+    for (var m = Math.ceil(rMin / paso) * paso; m <= rMax; m += paso) {
+      var p = frac(m);
+      if (p * ancho < 16 || (1 - p) * ancho < 16) continue;   // no cortar etiquetas en los bordes
+      var s = document.createElement("span"); s.style.left = (p * 100) + "%"; s.textContent = hhmm(m); marcas.appendChild(s);
+    }
+  }
+  function fijarValor(m) {
+    valor = Math.max(rMin, Math.min(rMax, Math.round(m)));
+    pulgar.style.left = (frac(valor) * 100) + "%";
+    reloj.setAttribute("aria-valuenow", valor);
+    reloj.setAttribute("aria-valuetext", hhmm(valor) + ", " + textoFotos(fotosEn(valor)));
+  }
+  function mostrarBurbuja() {
+    burbuja.innerHTML = "<b>" + hhmm(valor) + "</b> <small>· " + textoFotos(fotosEn(valor)) + "</small>";
+    burbuja.hidden = false;
+    var w = rArea.clientWidth, bw = burbuja.offsetWidth, x = frac(valor) * w;
+    var izq = -rArea.offsetLeft + 4, der = w + rArea.offsetLeft - 4;   // que no se salga de la pantalla
+    x = Math.max(izq + bw / 2, Math.min(der - bw / 2, x));
+    burbuja.style.left = x + "px";
+  }
+  function primeraDesde(m) {   // primera foto con hora >= m (lista ordenada por hora)
+    for (var i = 0; i < minutos.length; i++) if (minutos[i] >= m) return i;
+    return minutos.length - 1;
+  }
+  function saltarA(m, enfocar) {
+    if (filtro !== null || lista !== todas || !todas.length) return;
+    var j = primeraDesde(m);
+    if (j >= pintadas) masFotos(j + LOTE);   // pinta solo hasta ahí (las miniaturas se piden al verse)
+    var b = galeria.querySelector('.miniatura[data-i="' + j + '"]'); if (!b) return;
+    var el = b.previousElementSibling && b.previousElementSibling.classList.contains("hora") ? b.previousElementSibling : b;
+    var y = Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - cabecera.offsetHeight - 8);
+    var lejos = Math.abs(y - window.pageYOffset) > window.innerHeight * 1.5;   // saltos largos: directo (no pide las miniaturas intermedias)
+    quietoHasta = performance.now() + (sinMovimiento || lejos ? 250 : 900);
+    window.scrollTo({ top: y, behavior: sinMovimiento || lejos ? "auto" : "smooth" });
+    galeria.querySelectorAll(".destino").forEach(function (x) { x.classList.remove("destino"); });
+    b.classList.add("destino"); setTimeout(function () { b.classList.remove("destino"); }, 1600);
+    if (enfocar) b.focus({ preventScroll: true });
+  }
+  function valorDeX(x) {
+    var r = rArea.getBoundingClientRect();
+    return rMin + Math.max(0, Math.min(1, (x - r.left) / r.width)) * (rMax - rMin);
+  }
+  reloj.addEventListener("pointerdown", function (e) {
+    if (e.button > 0 || !reloj.classList.contains("listo")) return;
+    arrastre = e.pointerId;
+    try { reloj.setPointerCapture(e.pointerId); } catch (er) {}
+    reloj.classList.add("activo"); fijarValor(valorDeX(e.clientX)); mostrarBurbuja();
+  });
+  reloj.addEventListener("pointermove", function (e) {
+    if (arrastre !== e.pointerId) return;
+    fijarValor(valorDeX(e.clientX)); mostrarBurbuja();
+  });
+  function soltar(e, saltar) {
+    if (arrastre !== e.pointerId) return;
+    arrastre = null; reloj.classList.remove("activo"); burbuja.hidden = true;
+    if (saltar) { fijarValor(valorDeX(e.clientX)); saltarA(valor, true); }
+  }
+  reloj.addEventListener("pointerup", function (e) { soltar(e, true); });
+  reloj.addEventListener("pointercancel", function (e) { soltar(e, false); });
+  reloj.addEventListener("keydown", function (e) {
+    var d = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -10, PageUp: 10 }[e.key], m;
+    if (d) m = valor + d; else if (e.key === "Home") m = rMin; else if (e.key === "End") m = rMax; else return;
+    e.preventDefault(); fijarValor(m);
+    clearTimeout(tTeclado); quietoHasta = performance.now() + 1e4;
+    tTeclado = setTimeout(function () { saltarA(valor, false); }, 350);
+  });
+  // el pulgar sigue al scroll: hora de la primera miniatura visible bajo la cabecera
+  function seguirScroll() {
+    rafScroll = 0;
+    if (arrastre !== null || performance.now() < quietoHasta || filtro !== null || lista !== todas || !pintadas) return;
+    var tiles = galeria.getElementsByClassName("miniatura"), bajo = cabecera.getBoundingClientRect().bottom, lo = 0, hi = tiles.length - 1;
+    if (hi < 0) return;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (tiles[mid].getBoundingClientRect().bottom <= bajo + 4) lo = mid + 1; else hi = mid; }
+    var m = minutos[+tiles[lo].dataset.i];
+    if (!isNaN(m) && m !== valor) fijarValor(m);
+  }
+  window.addEventListener("scroll", function () { if (!rafScroll) rafScroll = requestAnimationFrame(seguirScroll); }, { passive: true });
+  var tMarcas = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(tMarcas); tMarcas = setTimeout(function () { if (todas.length) pintarMarcas(); }, 150);
+  });
 
   function actualizarHash(h) {
     if (history.replaceState) history.replaceState(history.state, "", h ? "#" + h : location.pathname + location.search);
@@ -524,12 +643,13 @@
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (d) {
         todas = (d.fotos || []).slice();
+        prepararReloj();
         verTodas();
         var h = decodeURIComponent((location.hash || "").slice(1));
         if (/^\d{1,4}$/.test(h)) { input.value = h; buscar(h, true); }
       })
       .catch(function () {   // sin datos: quitar el esqueleto y ofrecer reintentar
-        galeria.hidden = true; galeria.removeAttribute("aria-busy");
+        galeria.hidden = true; galeria.removeAttribute("aria-busy"); reloj.hidden = true;
         estado.textContent = ""; fallo.hidden = false;
       });
   }
