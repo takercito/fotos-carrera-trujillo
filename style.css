@@ -1,5 +1,5 @@
 *{box-sizing:border-box}
-:root{--primario:#cf3a1e;--primario-hover:#b5301a;--primario-activo:#9c2914;--fondo:#f6f7f9;--texto:#15181d;--suave:#6b7280;--acento:#e8492c;--borde:#e3e6ea;--radio:14px}
+:root{--primario:#0f766e;--primario-hover:#0d665f;--primario-activo:#0b5751;--fondo:#f6f7f9;--texto:#15181d;--suave:#6b7280;--acento:#0f766e;--acento-claro:#2bb3a3;--borde:#e3e6ea;--radio:14px}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fondo);color:var(--texto)}
 .oculto{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -12,7 +12,7 @@ h1 span{display:block;font-weight:500;font-size:.85rem;color:var(--suave)}
   padding:0 52px 0 48px;font-size:1.3rem;font-weight:600;color:var(--texto);outline:none;-webkit-appearance:none;appearance:none}
 .buscar input::-webkit-search-cancel-button{display:none}
 .buscar input::placeholder{font-weight:500;color:#9aa1ab}
-.buscar input:focus{border-color:var(--acento);box-shadow:0 0 0 4px rgba(232,73,44,.15)}
+.buscar input:focus{border-color:var(--acento);box-shadow:0 0 0 4px rgba(15,118,110,.18)}
 .lupa{position:absolute;left:16px;top:50%;width:22px;height:22px;transform:translateY(-50%);fill:#9aa1ab;pointer-events:none}
 .limpiar{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:38px;height:38px;border:0;border-radius:50%;
   background:#eef0f3;color:#444;font-size:1.5rem;line-height:1;cursor:pointer}
@@ -61,7 +61,7 @@ body.bloqueado{overflow:hidden}
 .interruptor input{position:absolute;opacity:0;width:1px;height:1px}
 .interruptor .pista{position:relative;width:44px;height:26px;border-radius:999px;background:#555;transition:background .15s;flex:none}
 .interruptor .pista::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}
-.interruptor input:checked+.pista{background:var(--acento)}
+.interruptor input:checked+.pista{background:var(--acento-claro)}
 .interruptor input:checked+.pista::after{transform:translateX(18px)}
 .interruptor input:focus-visible+.pista{outline:2px solid #fff;outline-offset:2px}
 .interruptor.no{visibility:hidden}
@@ -96,8 +96,8 @@ body.bloqueado{overflow:hidden}
 .accion[aria-busy="true"] .ico{display:none}
 .accion[aria-busy="true"] .giro{display:inline-block}
 .primaria{flex:1.5;min-height:52px;border:0;background:var(--primario);color:#fff;font-size:1.06rem;
-  box-shadow:0 1px 2px rgba(0,0,0,.35),0 6px 18px rgba(207,58,30,.38)}
-.primaria:hover{background:var(--primario-hover);box-shadow:0 1px 2px rgba(0,0,0,.35),0 8px 22px rgba(207,58,30,.48)}
+  box-shadow:0 1px 2px rgba(0,0,0,.35),0 6px 18px rgba(15,118,110,.35)}
+.primaria:hover{background:var(--primario-hover);box-shadow:0 1px 2px rgba(0,0,0,.35),0 8px 22px rgba(15,118,110,.45)}
 .primaria:active{background:var(--primario-activo);box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .primaria[aria-busy="true"]{background:var(--primario-hover)}
 .secundaria{flex:1;min-height:52px;border:1.5px solid rgba(255,255,255,.28);background:rgba(255,255,255,.10);color:#fff}
@@ -143,3 +143,30 @@ body.bloqueado{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.esqueleto{animation:none}}
 .visor-foto .v-blur{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;filter:blur(14px);transform:scale(1.03);opacity:.85;pointer-events:none}
 .visor-foto img.cargando{opacity:0}
+
+/* ---- visor: la foto ocupa siempre todo el hueco; tira y chips van superpuestos ---- */
+.relacionadas{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:14px 0 6px;border:0;
+  background:linear-gradient(to top,rgba(10,14,18,.78),rgba(10,14,18,.55) 70%,rgba(10,14,18,0));
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  -webkit-mask-image:linear-gradient(to top,#000 80%,transparent);mask-image:linear-gradient(to top,#000 80%,transparent)}
+.rel-tit{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:0;padding:0}
+.rel-fila{display:flex;align-items:center;gap:6px;padding:0 8px 0 0}
+.rel-tira{flex:1;min-width:0;padding:2px 10px 2px 10px;gap:6px}
+.rel-mini{width:44px;height:55px;border-radius:9px;opacity:.78;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.rel-mini.actual{opacity:1;box-shadow:0 0 0 2px #fff,0 2px 8px rgba(0,0,0,.5)}
+.rel-mini .t{display:none}
+@media (min-width:600px){.rel-mini{width:52px;height:65px}}
+/* Descargar todas: baldosa compacta al final de la tira */
+.terciaria{flex:none;width:auto;margin:0;min-height:55px;max-width:104px;padding:4px 10px;border-radius:12px;gap:6px;
+  border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.14);color:#fff;font-size:.74rem;line-height:1.15;font-weight:600;text-align:left}
+.terciaria .ico{width:18px;height:18px}
+.terciaria:hover{background:rgba(255,255,255,.22)}
+@media (min-width:700px){.terciaria{min-height:55px;padding:4px 12px;max-width:130px}}
+/* chips de corredor: arriba a la izquierda, sobre la foto */
+.visor-foto .chips{position:absolute;top:8px;left:8px;right:8px;z-index:3;flex-wrap:wrap}
+.chip{background:rgba(10,14,18,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-color:rgba(255,255,255,.35);min-height:34px;font-weight:600}
+.chip.sel{background:#fff;color:#0f3d39;border-color:#fff}
+.v-nav{z-index:2}
+.terciaria{white-space:normal;overflow:hidden;width:114px;max-width:none;padding:4px 8px;gap:5px;justify-content:flex-start}
+.terciaria .txt{min-width:0}
+@media (min-width:700px){.terciaria{width:130px}}

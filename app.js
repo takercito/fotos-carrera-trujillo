@@ -32,7 +32,7 @@
   }
   var obsImg = "IntersectionObserver" in window ? new IntersectionObserver(function (es) {
     es.forEach(function (e) { if (e.isIntersecting) { obsImg.unobserve(e.target); cargarMini(e.target); } });
-  }, { rootMargin: "150px 0px" }) : null;
+  }, { rootMargin: "0px 0px 120px 0px" }) : null;
 
   function pintar(fotos, conCabeceras) {
     lista = fotos; pintadas = 0; cabeceras = conCabeceras; ultimaCab = null;
@@ -57,6 +57,7 @@
       var img = document.createElement("img");
       img.dataset.src = "thumbs/" + encodeURIComponent(f.f); img.loading = "lazy"; img.decoding = "async";
       img.width = 288; img.height = 360;
+      if (i < 6) img.setAttribute("fetchpriority", "high");
       if (obsImg) obsImg.observe(img); else cargarMini(img);
       img.alt = "Foto " + (i + 1) + (f.t ? " · " + hora(f.t) : "");
       b.appendChild(img);
@@ -172,11 +173,9 @@
     pintarChips(f);
     var rel = relacionadas(selK); relActual = rel;
     vRelTira.textContent = "";
-    var multi = corredores(f).length > 1;
-    if (rel.length < 2 && !multi) { vRel.hidden = true; vTodas.hidden = true; return; }
+    if (rel.length < 2) { vRel.hidden = true; vTodas.hidden = true; return; }
     vRel.hidden = false;
-    vRelTit.innerHTML = rel.length < 2 ? "Elige corredor" : "Más fotos de <b>" + nombreRel(selK, f) + "</b> · " + rel.length;
-    vRelTira.hidden = rel.length < 2;
+    vRelTit.innerHTML = "Más fotos de <b>" + nombreRel(selK, f) + "</b> · " + rel.length;
     var frag = document.createDocumentFragment(), cur = null;
     rel.forEach(function (x) {
       var b = document.createElement("button");
@@ -314,7 +313,9 @@
     else if (e.key === "Escape") cerrar();
   });
   var x0 = null, y0 = null, zona = $("vZona");
-  zona.addEventListener("touchstart", function (e) { if (e.touches.length === 1) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } }, { passive: true });
+  zona.addEventListener("touchstart", function (e) {
+    if (e.target.closest && e.target.closest(".relacionadas, .chips")) { x0 = null; return; }   // la tira se desliza sola
+    if (e.touches.length === 1) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } }, { passive: true });
   zona.addEventListener("touchmove", function (e) {
     if (x0 !== null) (vCanvas.hidden ? vImg : vCanvas).style.transform = "translateX(" + (e.touches[0].clientX - x0) * 0.6 + "px)";
   }, { passive: true });

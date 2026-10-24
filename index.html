@@ -51,12 +51,18 @@
     <canvas id="vCanvas" hidden></canvas>
     <button type="button" id="vPrev" class="v-nav prev" aria-label="Anterior">‹</button>
     <button type="button" id="vNext" class="v-nav next" aria-label="Siguiente">›</button>
+    <div id="vChips" class="chips" role="group" aria-label="Corredores en esta foto" hidden></div>
+    <section id="vRel" class="relacionadas" aria-labelledby="vRelTit" hidden>
+      <h2 id="vRelTit" class="rel-tit"></h2>
+      <div class="rel-fila">
+        <div id="vRelTira" class="rel-tira"></div>
+      <button type="button" id="vTodas" class="accion terciaria" hidden>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h4m8 0h4M4 7v12a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7M12 4v11m0 0-4-4m4 4 4-4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="giro" aria-hidden="true"></span><span class="txt">Descargar todas</span>
+      </button>
+      </div>
+    </section>
   </div>
-  <section id="vRel" class="relacionadas" aria-label="Más fotos de este corredor" hidden>
-    <div class="rel-cab"><h2 id="vRelTit" class="rel-tit"></h2>
-      <div id="vChips" class="chips" role="group" aria-label="Corredores en esta foto" hidden></div></div>
-    <div id="vRelTira" class="rel-tira"></div>
-  </section>
   <div class="visor-pie">
     <div class="acciones">
       <a id="vDesc" class="accion primaria" href="#" download>
@@ -68,10 +74,6 @@
         <span class="giro" aria-hidden="true"></span><span class="txt">Compartir</span>
       </button>
     </div>
-    <button type="button" id="vTodas" class="accion terciaria" hidden>
-      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h4m8 0h4M4 7v12a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7M12 4v11m0 0-4-4m4 4 4-4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="giro" aria-hidden="true"></span><span class="txt">Descargar todas</span>
-    </button>
   </div>
 </div>
 <div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
