@@ -4,8 +4,11 @@
   var $ = function (id) { return document.getElementById(id); };
   var input = $("dorsal"), limpiar = $("limpiar"), estado = $("estado"), galeria = $("galeria");
   var vacio = $("vacio"), vacioTxt = $("vacioTxt");
-  var visor = $("visor"), vImg = $("vImg"), vInfo = $("vInfo"), vNombre = $("vNombre"), vDesc = $("vDesc");
-  var vPrev = $("vPrev"), vNext = $("vNext");
+  var visor = $("visor"), vImg = $("vImg"), vInfo = $("vInfo"), vDesc = $("vDesc");
+  var vPrev = $("vPrev"), vNext = $("vNext"), vCanvas = $("vCanvas"), vEnc = $("vEncuadre"), vEncLabel = $("vEncLabel");
+  var encuadre = false;
+  try { encuadre = localStorage.getItem("encuadre") === "1"; } catch (e) {}
+  vEnc.checked = encuadre;
   var todas = [], lista = [], actual = -1, filtro = null, temporizador = null;
   var PREFIJO = cfg.DOWNLOAD_PREFIX || "carrera";
 
@@ -101,11 +104,37 @@
     vImg.alt = "Foto " + (i + 1) + " de " + lista.length;
     vInfo.textContent = (i + 1) + " / " + lista.length + (f.t ? " · " + hora(f.t) : "") +
       (f.d && f.d.length ? " · dorsal " + f.d.join(", ") : "");
-    vNombre.textContent = f.f;
+    vEncLabel.classList.toggle("no", !f.c);
+    vCanvas.hidden = true; vImg.hidden = false;
     vDesc.href = "fotos/" + encodeURIComponent(f.f);
     vDesc.setAttribute("download", nombreDescarga(f));
     vPrev.disabled = i === 0; vNext.disabled = i === lista.length - 1;
     [i - 1, i + 1].forEach(function (j) { if (lista[j]) new Image().src = "fotos/" + encodeURIComponent(lista[j].f); });
+  }
+
+  // ---------- encuadre (recorte sugerido, opcional; se hace en el navegador)
+  function recorteActivo() { var f = lista[actual]; return encuadre && f && f.c ? f.c : null; }
+
+  function pintarRecorte() {
+    var c = recorteActivo();
+    if (!c || !vImg.complete || !vImg.naturalWidth) { vCanvas.hidden = true; vImg.hidden = false; return; }
+    var W = vImg.naturalWidth, H = vImg.naturalHeight;
+    var sx = Math.round(c[0] * W), sy = Math.round(c[1] * H), sw = Math.round(c[2] * W), sh = Math.round(c[3] * H);
+    vCanvas.width = sw; vCanvas.height = sh;
+    vCanvas.getContext("2d").drawImage(vImg, sx, sy, sw, sh, 0, 0, sw, sh);
+    vCanvas.hidden = false; vImg.hidden = true;
+  }
+  vImg.addEventListener("load", pintarRecorte);
+  vEnc.addEventListener("change", function () {
+    encuadre = vEnc.checked;
+    try { localStorage.setItem("encuadre", encuadre ? "1" : "0"); } catch (e) {}
+    pintarRecorte();
+  });
+
+  function guardarBlob(blob, nombre) {
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
 
   function abrir(i) {
@@ -132,17 +161,25 @@
   var x0 = null, y0 = null, zona = $("vZona");
   zona.addEventListener("touchstart", function (e) { if (e.touches.length === 1) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } }, { passive: true });
   zona.addEventListener("touchmove", function (e) {
-    if (x0 !== null) vImg.style.transform = "translateX(" + (e.touches[0].clientX - x0) * 0.6 + "px)";
+    if (x0 !== null) (vCanvas.hidden ? vImg : vCanvas).style.transform = "translateX(" + (e.touches[0].clientX - x0) * 0.6 + "px)";
   }, { passive: true });
   zona.addEventListener("touchend", function (e) {
-    vImg.style.transform = "";
+    vImg.style.transform = ""; vCanvas.style.transform = "";
     if (x0 === null) return;
     var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) mostrar(actual + (dx < 0 ? 1 : -1));
     else if (dy > 110 && Math.abs(dy) > Math.abs(dx) * 1.5) cerrar();   // deslizar hacia abajo = cerrar
   });
   vDesc.addEventListener("click", function (e) {
-    if (!(window.Watermark && window.Watermark.enabled)) return;   // descarga directa del archivo
+    var c = recorteActivo();
+    if (c && !vCanvas.hidden) {   // descarga recortada, generada aquí (JPEG ~0.92)
+      e.preventDefault();
+      var nombre = vDesc.getAttribute("download").replace(/\.jpg$/i, "_encuadre.jpg");
+      vCanvas.toBlob(function (b) { if (b) guardarBlob(b, nombre); else window.location.href = vDesc.href; },
+        "image/jpeg", cfg.JPEG_QUALITY || 0.92);
+      return;
+    }
+    if (!(window.Watermark && window.Watermark.enabled)) return;   // descarga directa del archivo completo
     e.preventDefault();
     var t = vDesc.textContent; vDesc.textContent = "Preparando…";
     window.Watermark.download(vDesc.href, vDesc.getAttribute("download"))

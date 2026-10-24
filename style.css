@@ -45,7 +45,7 @@ main{padding:10px 6px 20px;max-width:1400px;margin:0 auto}
 .v-nombre{font-size:.75rem;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .v-btn{border:0;background:rgba(255,255,255,.14);color:#fff;width:42px;height:42px;border-radius:50%;font-size:1.2rem;cursor:pointer}
 .visor-foto{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:pan-y}
-.visor-foto img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;transition:transform .15s}
+.visor-foto img,.visor-foto canvas{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;transition:transform .15s}
 .v-nav{position:absolute;top:50%;transform:translateY(-50%);border:0;background:rgba(0,0,0,.35);color:#fff;width:46px;height:64px;
   font-size:2.2rem;line-height:1;cursor:pointer;border-radius:10px}
 .v-nav.prev{left:6px}.v-nav.next{right:6px}
@@ -54,3 +54,12 @@ main{padding:10px 6px 20px;max-width:1400px;margin:0 auto}
 .descargar{flex:none;padding:14px 26px;font-size:1.05rem}
 body.bloqueado{overflow:hidden}
 .centinela{height:1px}
+.visor-foto canvas{width:auto;height:auto}
+.interruptor{display:inline-flex;align-items:center;gap:8px;font-size:.95rem;font-weight:600;cursor:pointer;user-select:none}
+.interruptor input{position:absolute;opacity:0;width:1px;height:1px}
+.interruptor .pista{position:relative;width:44px;height:26px;border-radius:999px;background:#555;transition:background .15s;flex:none}
+.interruptor .pista::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}
+.interruptor input:checked+.pista{background:var(--acento)}
+.interruptor input:checked+.pista::after{transform:translateX(18px)}
+.interruptor input:focus-visible+.pista{outline:2px solid #fff;outline-offset:2px}
+.interruptor.no{visibility:hidden}
