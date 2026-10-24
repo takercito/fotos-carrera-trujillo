@@ -15,6 +15,11 @@
   var SIN_LOGO = "No se pudo preparar la foto, inténtalo de nuevo";
 
   function hora(t) { return t ? t.slice(11, 16) : ""; }
+  function textoDorsales(d) {   // con más de 3 se abrevia ("601 · 603 +3"); si se busca uno de ellos, ese va primero
+    if (d.length <= 3) return d.join(" · ");
+    var v = filtro !== null && d.indexOf(filtro) > 1 ? [filtro].concat(d.filter(function (b) { return b !== filtro; })) : d;
+    return v.slice(0, 2).join(" · ") + " +" + (d.length - 2);
+  }
 
   // Scroll infinito: se pintan lotes de LOTE miniaturas cuando el centinela se acerca a la pantalla.
   // Primer lote pequeño (pantalla visible al instante); luego lotes de LOTE al acercarse al final.
@@ -73,6 +78,10 @@
       b.setAttribute("aria-label", "Foto" + (f.t ? " de las " + hora(f.t) : "") + (f.d && f.d.length ? ", dorsal " + f.d.join(" y ") : ""));
       b.appendChild(img);
       if (f.t) { var s = document.createElement("span"); s.className = "t"; s.setAttribute("aria-hidden", "true"); s.textContent = hora(f.t); b.appendChild(s); }
+      if (f.d && f.d.length) {   // dorsales de la foto, arriba a la izquierda ("501 · 506"; con muchos, "601 · 603 +3")
+        var dd = document.createElement("span"); dd.className = "dor"; dd.setAttribute("aria-hidden", "true");
+        dd.textContent = textoDorsales(f.d); b.appendChild(dd);
+      }
       frag.appendChild(b);
     }
     pintadas = fin;
@@ -291,14 +300,28 @@
     vChips.textContent = "";
     vChips.hidden = rs.length < 2;
     if (rs.length < 2) return;
+    // "Dorsal 501" "Dorsal 506"; con más de 3 corredores, "Dorsales" + solo números (que no tapen la foto)
+    var corto = rs.length > 3;
+    if (corto) { var l = document.createElement("span"); l.className = "chips-tit"; l.textContent = "Dorsales"; l.setAttribute("aria-hidden", "true"); vChips.appendChild(l); }
     rs.forEach(function (x) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "chip" + (x.k === selK ? " sel" : ""); b.dataset.k = x.k;
       b.setAttribute("aria-pressed", x.k === selK ? "true" : "false");
-      b.textContent = etiqueta(f, x.k);
+      b.textContent = x.k.charAt(0) === "g" || corto ? etiqueta(f, x.k) : "Dorsal " + x.k;
       b.setAttribute("aria-label", "Ver fotos " + (x.k.charAt(0) === "g" ? "de " + etiqueta(f, x.k).toLowerCase() : "del dorsal " + x.k));
       vChips.appendChild(b);
     });
+  }
+  // título del visor: el corredor elegido primero ("Dorsal 506 · con 501"), así cambia al tocar otro chip
+  function titular(f, i) {
+    var otros = (f.d || []).map(String).filter(function (b) { return b !== selK; });
+    var t = !f.d || !f.d.length ? "Sin dorsal" : selK && selK.charAt(0) !== "g" && otros.length < f.d.length
+      ? "Dorsal " + selK + (otros.length ? " · con " + (otros.length > 2 ? otros.length + " más" : otros.join(" y ")) : "")
+      : "Dorsal " + f.d.join(" · ");
+    vTit.textContent = t;
+    vImg.alt = t + (f.t ? ", " + hora(f.t) : "") + " (" + (i + 1) + " de " + vLista.length + ")";
+    vCanvas.setAttribute("aria-label", vImg.alt + ", encuadre 4:5");
+    vSub.textContent = (i + 1) + " / " + vLista.length + (f.t ? " · " + hora(f.t) : "");
   }
   function pintarTira(f) {
     pintarChips(f);
@@ -332,8 +355,8 @@
     var f = vLista[actual]; selK = b.dataset.k;
     if (vLista !== lista) vLista = relacionadas(selK).length ? relacionadas(selK) : vLista;   // recorrer este corredor
     actual = Math.max(0, vLista.indexOf(f));
-    pintarTira(f); pintarRecorte(); archivoListo = null; prepararCompartir(); paqueteListo = null;
-    vSub.textContent = (actual + 1) + " / " + vLista.length + (f.t ? " · " + hora(f.t) : "");
+    pintarTira(f); titular(f, actual); pintarRecorte(); archivoListo = null; prepararCompartir(); paqueteListo = null;
+    var nb = vChips.querySelector('.chip[data-k="' + selK + '"]'); if (nb) nb.focus({ preventScroll: true });   // el foco sigue en el chip
   });
   vRelTira.addEventListener("click", function (e) {
     var b = e.target.closest(".rel-mini"); if (!b) return;
@@ -386,10 +409,7 @@
       if (turno !== vTurno || visor.hidden) return;
       avisar(err && err.logo ? SIN_LOGO : "No se ha podido cargar la foto. Revisa tu conexión.");
     });
-    vTit.textContent = f.d && f.d.length ? "Dorsal " + f.d.join(" · ") : "Sin dorsal";
-    vImg.alt = vTit.textContent + (f.t ? ", " + hora(f.t) : "") + " (" + (i + 1) + " de " + vLista.length + ")";
-    vCanvas.setAttribute("aria-label", vImg.alt + ", encuadre 4:5");
-    vSub.textContent = (i + 1) + " / " + vLista.length + (f.t ? " · " + hora(f.t) : "");
+    titular(f, i);
     vEncLabel.classList.toggle("no", !cropDe(f));
     vCanvas.hidden = true; vImg.hidden = false;
     vPrev.disabled = i === 0; vNext.disabled = i === vLista.length - 1;
