@@ -1,5 +1,5 @@
 // Marca de agua opcional en el navegador, al descargar (no se guarda en el servidor).
-// Si CONFIG.WATERMARK_ENABLED es false, el enlace <a download> descarga el archivo original.
+// Si CONFIG.WATERMARK_ENABLED es false o LOGO_URL está vacío, el enlace <a download> descarga el archivo original.
 (function () {
   var cfg = window.CONFIG || {};
   var logoPromise = null;
@@ -30,7 +30,7 @@
 
   // Dibuja foto + logo en un canvas; devuelve una promesa con el JPEG (Blob).
   function render(photoUrl) {
-    logoPromise = logoPromise || loadImage(cfg.LOGO_URL || "logo.png");
+    logoPromise = logoPromise || loadImage(cfg.LOGO_URL);
     return Promise.all([loadImage(photoUrl), logoPromise]).then(function (r) {
       var photo = r[0], logo = r[1];
       var W = photo.naturalWidth, H = photo.naturalHeight;
@@ -54,5 +54,5 @@
     return render(photoUrl).then(function (blob) { saveBlob(blob, name); });
   }
 
-  window.Watermark = { enabled: !!cfg.WATERMARK_ENABLED, render: render, download: downloadWithLogo };
+  window.Watermark = { enabled: !!(cfg.WATERMARK_ENABLED && cfg.LOGO_URL), render: render, download: downloadWithLogo };
 })();

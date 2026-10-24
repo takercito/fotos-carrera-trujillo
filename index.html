@@ -2,44 +2,56 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noimageindex">
 <meta name="referrer" content="no-referrer">
-<title>Fotos carrera infantil · CSR A Dos Ruedas – Trujillo · 24/10/2026</title>
-<link rel="icon" href="logo.png">
+<meta name="theme-color" content="#ffffff">
+<title>Fotos carrera infantil · Trujillo · 24/10/2026</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%B2%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <img src="logo.png" alt="CSR A Dos Ruedas" class="logo">
-  <h1>Carrera infantil<br><span>CSR A Dos Ruedas – Trujillo · 24 de octubre de 2026</span></h1>
-</header>
-<main>
-  <form id="buscar" autocomplete="off">
-    <label for="dorsal">Busca tus fotos por número de dorsal</label>
-    <div class="fila">
-      <input id="dorsal" name="dorsal" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="Ej. 511" required>
-      <button type="submit">Buscar</button>
-    </div>
+<header class="top">
+  <h1>Fotos carrera infantil <span>Trujillo · 24/10/2026</span></h1>
+  <form id="buscar" class="buscar" role="search" autocomplete="off">
+    <label for="dorsal" class="oculto">Número de dorsal</label>
+    <svg class="lupa" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.8 4.8-1.4 1.4-4.8-4.8A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+    <input id="dorsal" name="dorsal" type="search" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Busca tu dorsal" enterkeyhint="search">
+    <button type="button" id="limpiar" class="limpiar" aria-label="Borrar búsqueda" hidden>×</button>
   </form>
-  <p id="estado" role="status" aria-live="polite"></p>
-  <section id="fotos" class="rejilla"></section>
+  <p id="estado" class="estado" role="status" aria-live="polite">Cargando fotos…</p>
+</header>
 
-  <section class="secundaria">
-    <button type="button" id="verSinDorsal" class="enlace" aria-expanded="false" aria-controls="sinDorsal">Fotos sin dorsal detectado</button>
-    <div id="sinDorsal" hidden>
-      <p class="nota">En estas fotos no hemos podido leer el dorsal (dorsal tapado, lejos o de espaldas). Echa un vistazo por si sale tu peque.</p>
-      <div id="sinGrid" class="rejilla mini"></div>
-      <nav id="sinPag" class="paginas" aria-label="Páginas"></nav>
-    </div>
-  </section>
-
-  <section class="info">
-    <p>Las fotos se descargan gratis y a buena calidad. Los dorsales se han leído de forma automática; si falta alguna foto, vuelve más tarde: seguimos subiendo fotos.</p>
-    <p>¿Quieres que retiremos una foto? Escríbenos a <a href="mailto:j.quesada.rod@gmail.com?subject=Retirar%20foto%20carrera%20infantil%20CSR">j.quesada.rod@gmail.com</a> para retirar una foto (indica el nombre del archivo, p. ej. IMG_5768.jpg).</p>
-  </section>
+<main>
+  <div id="galeria" class="galeria"></div>
+  <div id="vacio" class="vacio" hidden>
+    <p class="emoji" aria-hidden="true">🔍</p>
+    <p id="vacioTxt"></p>
+    <button type="button" id="verTodas" class="boton">Ver todas las fotos</button>
+  </div>
 </main>
-<footer><p>Fotos: CSR A Dos Ruedas · Trujillo (Cáceres). Uso personal, no comercial.</p></footer>
+
+<footer class="pie">
+  <p>Descarga gratuita, solo para uso personal. Los dorsales se han leído automáticamente: si no encuentras el tuyo, mira la galería por hora.</p>
+  <p>¿Quieres que retiremos una foto? Escribe a <a href="mailto:j.quesada.rod@gmail.com?subject=Retirar%20foto%20carrera%20infantil%20Trujillo">j.quesada.rod@gmail.com</a> indicando el nombre del archivo (p. ej. IMG_5768.jpg).</p>
+</footer>
+
+<div id="visor" class="visor" role="dialog" aria-modal="true" aria-label="Foto" hidden>
+  <div class="visor-barra">
+    <span id="vInfo" class="v-info"></span>
+    <button type="button" id="vCerrar" class="v-btn" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="visor-foto" id="vZona">
+    <img id="vImg" alt="">
+    <button type="button" id="vPrev" class="v-nav prev" aria-label="Anterior">‹</button>
+    <button type="button" id="vNext" class="v-nav next" aria-label="Siguiente">›</button>
+  </div>
+  <div class="visor-pie">
+    <span id="vNombre" class="v-nombre"></span>
+    <a id="vDesc" class="boton descargar" href="#" download>⬇ Descargar</a>
+  </div>
+</div>
+
 <script src="config.js"></script>
 <script src="watermark.js"></script>
 <script src="app.js"></script>
