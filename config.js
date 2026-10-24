@@ -1,11 +1,11 @@
 // Configuración del sitio.
 window.CONFIG = {
-  WATERMARK_ENABLED: false,   // false = se descarga la foto original tal cual
-  LOGO_URL: "",               // (opcional) PNG con transparencia para marca de agua al descargar
-  LOGO_WIDTH: 0.09,           // ancho del logo = 9 % del ancho de la foto
+  WATERMARK_ENABLED: true,    // logo del club: superpuesto en el visor/miniaturas y añadido al descargar o compartir
+  LOGO_URL: "logo.png",       // PNG blanco con transparencia (generado con make_logo_web.py)
+  LOGO_WIDTH: 0.2,            // ancho del logo = 20 % del ancho de la foto (o del recorte 4:5)
   LOGO_MARGIN: 0.022,         // margen a la esquina inferior derecha
-  LOGO_OPACITY: 0.92,
-  JPEG_QUALITY: 0.92,
+  LOGO_OPACITY: 0.9,
+  JPEG_QUALITY: 0.9,
   BATCH_SIZE: 18,             // miniaturas por lote (scroll infinito)
   DOWNLOAD_PREFIX: "carrera-trujillo"   // nombre de los archivos descargados
 };

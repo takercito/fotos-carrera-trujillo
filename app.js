@@ -11,6 +11,7 @@
   vEnc.checked = encuadre;
   var todas = [], lista = [], actual = -1, filtro = null, temporizador = null;
   var PREFIJO = cfg.DOWNLOAD_PREFIX || "carrera";
+  var conLogo = !!(window.Watermark && window.Watermark.enabled);   // logo del club (CSS encima; canvas al descargar)
 
   function hora(t) { return t ? t.slice(11, 16) : ""; }
 
@@ -26,9 +27,18 @@
   if (observador) observador.observe(centinela);
   function cargarMini(img) {
     if (!img.dataset.src) return;
-    img.onload = function () { img.classList.add("ok"); };
+    img.onload = function () { img.classList.add("ok"); logoMiniaturas(); };
     img.onerror = function () { img.classList.add("ok"); };
     img.src = img.dataset.src; delete img.dataset.src;
+  }
+  // el logo de las miniaturas se pide cuando ya se ha visto la primera (no retrasa la carga inicial)
+  function logoMiniaturas() {
+    if (!conLogo || logoMiniaturas.pedido) return;
+    logoMiniaturas.pedido = true;
+    window.Watermark.logo().then(function (l) {
+      if (!l) { logoMiniaturas.pedido = false; return; }
+      galeria.style.setProperty("--logo", 'url("' + l.src + '")'); galeria.classList.add("con-logo");
+    });
   }
   var obsImg = "IntersectionObserver" in window ? new IntersectionObserver(function (es) {
     es.forEach(function (e) { if (e.isIntersecting) { obsImg.unobserve(e.target); cargarMini(e.target); } });
@@ -345,7 +355,7 @@
     archivoListo = null;
     selK = elegirCorredor(f);
     vBlur.src = "thumbs/" + encodeURIComponent(f.f); vBlur.hidden = false;
-    vImg.classList.add("cargando");
+    vImg.classList.add("cargando"); vLogo.hidden = true;
     vImg.src = "fotos/" + encodeURIComponent(f.f);
     vTit.textContent = f.d && f.d.length ? "Dorsal " + f.d.join(" · ") : "Sin dorsal";
     vImg.alt = vTit.textContent + (f.t ? ", " + hora(f.t) : "") + " (" + (i + 1) + " de " + vLista.length + ")";
@@ -372,11 +382,41 @@
   }
   function pintarRecorte() {
     var c = recorteActivo();
-    if (!c || !vImg.complete || !vImg.naturalWidth) { vCanvas.hidden = true; vImg.hidden = false; return; }
+    if (!c || !vImg.complete || !vImg.naturalWidth) { vCanvas.hidden = true; vImg.hidden = false; colocarLogo(); return; }
     var q = rect45(c, vImg.naturalWidth, vImg.naturalHeight), sx = q[0], sy = q[1], sw = q[2], sh = q[3];
     vCanvas.width = sw; vCanvas.height = sh;
     vCanvas.getContext("2d").drawImage(vImg, sx, sy, sw, sh, 0, 0, sw, sh);
     vCanvas.hidden = false; vImg.hidden = true;
+    colocarLogo();
+  }
+
+  // ---------- logo del club superpuesto en el visor (CSS, no toca la foto): abajo a la derecha de la foto visible
+  // (la caja real de la imagen, no el hueco con bandas negras), por encima de la tira de fotos si está.
+  var vLogo = $("vLogo"), rafLogo = 0;
+  function colocarLogo() {
+    rafLogo = 0;
+    if (!conLogo || visor.hidden) return;
+    var lienzo = !vCanvas.hidden, el = lienzo ? vCanvas : vImg;
+    var nw = lienzo ? vCanvas.width : vImg.naturalWidth, nh = lienzo ? vCanvas.height : vImg.naturalHeight;
+    if (!vLogo.naturalWidth || !nw || !nh || vImg.classList.contains("cargando")) { vLogo.hidden = true; return; }
+    var z = zona.getBoundingClientRect(), r = el.getBoundingClientRect();
+    var s = Math.min(r.width / nw, r.height / nh), cw = nw * s, ch = nh * s;   // object-fit: contain
+    var x = r.left - z.left + (r.width - cw) / 2, y = r.top - z.top + (r.height - ch) / 2;
+    var b = window.Watermark.box(cw, ch, vLogo.naturalWidth, vLogo.naturalHeight), top = y + b[1];
+    if (!vRel.hidden) top = Math.min(top, vRel.offsetTop - b[3] - 6);
+    vLogo.style.left = (x + b[0]) + "px"; vLogo.style.top = Math.max(y, top) + "px";
+    vLogo.style.width = b[2] + "px"; vLogo.style.height = b[3] + "px";
+    vLogo.style.opacity = cfg.LOGO_OPACITY || 0.9;
+    vLogo.hidden = false;
+  }
+  function recolocarLogo() { if (!rafLogo) rafLogo = requestAnimationFrame(colocarLogo); }
+  window.addEventListener("resize", recolocarLogo);
+  window.addEventListener("orientationchange", recolocarLogo);
+  if (window.ResizeObserver) new ResizeObserver(recolocarLogo).observe($("vZona"));
+  function cargarLogoVisor() {   // se pide al abrir el visor por primera vez
+    if (!conLogo || vLogo.getAttribute("src")) return;
+    vLogo.onload = colocarLogo;
+    vLogo.src = cfg.LOGO_URL;
   }
   vImg.addEventListener("load", function () { vImg.classList.remove("cargando"); vBlur.hidden = true; pintarRecorte(); prepararCompartir(); });
   vImg.addEventListener("error", function () {
@@ -394,25 +434,17 @@
     a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
-  function aBlob(canvas) {
-    return new Promise(function (ok, mal) {
-      canvas.toBlob(function (b) { b ? ok(b) : mal(new Error("toBlob")); }, "image/jpeg", cfg.JPEG_QUALITY || 0.92);
-    });
+  function descargarOriginal(href, nombre) {   // último recurso: el archivo tal cual
+    var a = document.createElement("a");
+    a.href = href; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
   }
-  function cargarImg(url) {
-    return new Promise(function (ok, mal) { var im = new Image(); im.onload = function () { ok(im); }; im.onerror = mal; im.src = url; });
-  }
-  // Blob JPEG de una foto: completa (el archivo tal cual) o recortada con su encuadre
+  // Blob JPEG de una foto (completa o recortada con su encuadre) con el logo abajo a la derecha (watermark.js).
+  // Sin logo ni recorte: el archivo tal cual.
   function blobDeFoto(f, recortar) {
     var url = "fotos/" + encodeURIComponent(f.f);
     var cr = recortar ? cropDe(f) : null;
-    if (!cr) return fetch(url).then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); });
-    return cargarImg(url).then(function (im) {
-      var cv = document.createElement("canvas"), q = rect45(cr, im.naturalWidth, im.naturalHeight);
-      var sx = q[0], sy = q[1], sw = q[2], sh = q[3];
-      cv.width = sw; cv.height = sh; cv.getContext("2d").drawImage(im, sx, sy, sw, sh, 0, 0, sw, sh);
-      return aBlob(cv);
-    });
+    if (cr || conLogo) return window.Watermark.render(url, cr ? function (w, h) { return rect45(cr, w, h); } : null);
+    return fetch(url).then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); });
   }
   function nombreArchivo(f, recortado) { return nombreDescarga(f).replace(/\.jpg$/i, recortado && cropDe(f) ? "_encuadre.jpg" : ".jpg"); }
 
@@ -429,11 +461,11 @@
     vLista = lista; origen = desde || document.activeElement;
     visor.hidden = false; document.body.classList.add("bloqueado"); bloquearFondo(true);
     if (history.pushState && !(history.state && history.state.visor)) history.pushState({ visor: true }, "", location.href);
-    mostrar(i); $("vCerrar").focus();
+    cargarLogoVisor(); mostrar(i); $("vCerrar").focus();
   }
   function cerrarUI() {
     visor.hidden = true; document.body.classList.remove("bloqueado"); bloquearFondo(false);
-    vImg.removeAttribute("src"); aviso.hidden = true;
+    vImg.removeAttribute("src"); aviso.hidden = true; vLogo.hidden = true;
     if (origen && origen.isConnected) origen.focus({ preventScroll: true });   // volver a la miniatura abierta
     origen = null;
   }
@@ -467,10 +499,10 @@
     if (e.target.closest && e.target.closest(".relacionadas, .chips")) { x0 = null; return; }   // la tira se desliza sola
     if (e.touches.length === 1) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } }, { passive: true });
   zona.addEventListener("touchmove", function (e) {
-    if (x0 !== null) (vCanvas.hidden ? vImg : vCanvas).style.transform = "translateX(" + (e.touches[0].clientX - x0) * 0.6 + "px)";
+    if (x0 !== null) (vCanvas.hidden ? vImg : vCanvas).style.transform = vLogo.style.transform = "translateX(" + (e.touches[0].clientX - x0) * 0.6 + "px)";
   }, { passive: true });
   zona.addEventListener("touchend", function (e) {
-    vImg.style.transform = ""; vCanvas.style.transform = "";
+    vImg.style.transform = ""; vCanvas.style.transform = ""; vLogo.style.transform = "";
     if (x0 === null) return;
     var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) mostrar(actual + (dx < 0 ? 1 : -1));
@@ -479,20 +511,12 @@
 
   // ---------- Descargar foto
   vDesc.addEventListener("click", function (e) {
-    var c = recorteActivo();
-    if (c && !vCanvas.hidden) {   // descarga recortada, generada aquí (JPEG ~0.92)
-      e.preventDefault();
-      var nombre = vDesc.getAttribute("download").replace(/\.jpg$/i, "_encuadre.jpg");
-      ocupado(vDesc, true, "Preparando…");
-      aBlob(vCanvas).then(function (b) { guardarBlob(b, nombre); }, function () { window.location.href = vDesc.href; })
-        .then(function () { ocupado(vDesc, false); });
-      return;
-    }
-    if (!(window.Watermark && window.Watermark.enabled)) return;   // descarga directa del archivo completo
-    e.preventDefault();
+    var f = vLista[actual], rec = !!recorteActivo();
+    if (!f || !(rec || conLogo)) return;   // descarga directa del archivo completo
+    e.preventDefault();   // JPEG generado aquí: logo abajo a la derecha (del recorte 4:5 si hay Encuadre)
     ocupado(vDesc, true, "Preparando…");
-    window.Watermark.download(vDesc.href, vDesc.getAttribute("download"))
-      .catch(function () { window.location.href = vDesc.href; })
+    var href = vDesc.href, nombre = vDesc.getAttribute("download");
+    blobDeFoto(f, rec).then(function (b) { guardarBlob(b, nombreArchivo(f, rec)); }, function () { descargarOriginal(href, nombre); })
       .then(function () { ocupado(vDesc, false); });
   });
 
