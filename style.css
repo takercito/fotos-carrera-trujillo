@@ -1,0 +1,36 @@
+*{box-sizing:border-box}
+:root{--fg:#111;--muted:#555;--acc:#d71920;--bg:#f6f6f4}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--fg);background:var(--bg);line-height:1.45}
+header{background:#111;color:#fff;padding:18px 16px;display:flex;align-items:center;gap:14px;
+  background-image:repeating-linear-gradient(90deg,#fff 0 10px,#111 10px 20px);background-size:100% 6px;background-repeat:no-repeat;background-position:bottom}
+.logo{width:110px;height:auto;background:#fff;border-radius:8px;padding:4px}
+h1{font-size:1.3rem;margin:0}
+h1 span{font-size:.95rem;font-weight:500;opacity:.85}
+main{max-width:1000px;margin:0 auto;padding:18px 14px 30px}
+label{display:block;font-weight:600;margin-bottom:8px}
+.fila{display:flex;gap:8px}
+input{flex:1;min-width:0;font-size:1.6rem;padding:10px 14px;border:2px solid #bbb;border-radius:10px;letter-spacing:.08em}
+input:focus{outline:none;border-color:var(--acc)}
+button{font-size:1.1rem;font-weight:700;padding:0 20px;border:0;border-radius:10px;background:var(--acc);color:#fff}
+#estado{min-height:1.4em;color:var(--muted);margin:14px 0}
+.rejilla{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:560px){.rejilla{grid-template-columns:1fr 1fr}}
+@media(min-width:900px){.rejilla{grid-template-columns:1fr 1fr 1fr}}
+figure{margin:0;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+figure img{display:block;width:100%;height:auto;background:#ddd}
+figcaption{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;gap:10px;font-size:.85rem;color:var(--muted)}
+.descargar{display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;padding:10px 14px;border-radius:8px;white-space:nowrap}
+.info{margin-top:28px;font-size:.92rem;color:var(--muted);border-top:1px solid #ddd;padding-top:12px}
+.info a{color:var(--acc)}
+footer{text-align:center;font-size:.8rem;color:var(--muted);padding:10px 14px 24px}
+.secundaria{margin-top:26px;border-top:1px solid #ddd;padding-top:14px}
+.enlace{background:none;color:var(--fg);border:1px solid #bbb;font-weight:600;font-size:.95rem;padding:10px 14px}
+.nota{font-size:.9rem;color:var(--muted)}
+.rejilla.mini{grid-template-columns:1fr 1fr;gap:10px}
+@media(min-width:700px){.rejilla.mini{grid-template-columns:repeat(4,1fr)}}
+.rejilla.mini figcaption{flex-direction:column;align-items:stretch;padding:8px;font-size:.75rem}
+.rejilla.mini .descargar{text-align:center;padding:8px}
+.paginas{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:14px 0;font-size:.85rem;color:var(--muted)}
+.paginas button{font-size:.9rem;padding:8px 12px;background:#111}
+.paginas button:disabled{opacity:.35}
