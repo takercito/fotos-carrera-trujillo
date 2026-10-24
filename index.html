@@ -30,6 +30,10 @@
     <p id="vacioTxt"></p>
     <button type="button" id="verTodas" class="boton">Ver todas las fotos</button>
   </div>
+  <div id="fallo" class="vacio fallo" role="alert" hidden>
+    <p>No se han podido cargar las fotos. Revisa tu conexión.</p>
+    <button type="button" id="reintentar" class="boton">Reintentar</button>
+  </div>
 </main>
 
 <footer class="pie">
@@ -37,7 +41,7 @@
   <p>¿Quieres que retiremos una foto? Escribe a <a href="mailto:j.quesada.rod@gmail.com?subject=Retirar%20foto%20carrera%20infantil%20Trujillo">j.quesada.rod@gmail.com</a> indicando el nombre del archivo (p. ej. IMG_5768.jpg).</p>
 </footer>
 
-<div id="visor" class="visor" role="dialog" aria-modal="true" aria-label="Foto" hidden>
+<div id="visor" class="visor" role="dialog" aria-modal="true" aria-labelledby="vTit" hidden>
   <div class="visor-barra">
     <p class="v-info"><b id="vTit"></b><span id="vSub"></span></p>
     <label class="interruptor" id="vEncLabel" title="Recorte sugerido 4:5 para redes"><input type="checkbox" id="vEncuadre"><span class="pista"></span>Encuadre</label>
@@ -48,7 +52,7 @@
   <div class="visor-foto" id="vZona">
     <img id="vBlur" class="v-blur" alt="" aria-hidden="true" hidden>
     <img id="vImg" alt="">
-    <canvas id="vCanvas" hidden></canvas>
+    <canvas id="vCanvas" role="img" aria-label="Foto con encuadre 4:5" hidden></canvas>
     <button type="button" id="vPrev" class="v-nav prev" aria-label="Anterior">‹</button>
     <button type="button" id="vNext" class="v-nav next" aria-label="Siguiente">›</button>
     <div id="vChips" class="chips" role="group" aria-label="Corredores en esta foto" hidden></div>

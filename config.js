@@ -6,6 +6,6 @@ window.CONFIG = {
   LOGO_MARGIN: 0.022,         // margen a la esquina inferior derecha
   LOGO_OPACITY: 0.92,
   JPEG_QUALITY: 0.92,
-  BATCH_SIZE: 24,             // miniaturas por lote (scroll infinito)
+  BATCH_SIZE: 18,             // miniaturas por lote (scroll infinito)
   DOWNLOAD_PREFIX: "carrera-trujillo"   // nombre de los archivos descargados
 };

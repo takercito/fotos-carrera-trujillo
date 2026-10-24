@@ -59,9 +59,10 @@
       img.width = 288; img.height = 360;
       if (i < 6) img.setAttribute("fetchpriority", "high");
       if (obsImg) obsImg.observe(img); else cargarMini(img);
-      img.alt = "Foto " + (i + 1) + (f.t ? " · " + hora(f.t) : "");
+      img.alt = "";
+      b.setAttribute("aria-label", "Foto" + (f.t ? " de las " + hora(f.t) : "") + (f.d && f.d.length ? ", dorsal " + f.d.join(" y ") : ""));
       b.appendChild(img);
-      if (f.t) { var s = document.createElement("span"); s.className = "t"; s.textContent = hora(f.t); b.appendChild(s); }
+      if (f.t) { var s = document.createElement("span"); s.className = "t"; s.setAttribute("aria-hidden", "true"); s.textContent = hora(f.t); b.appendChild(s); }
       frag.appendChild(b);
     }
     pintadas = fin;
@@ -91,7 +92,7 @@
     if (!res.length) {
       galeria.hidden = true; galeria.textContent = ""; lista = [];
       vacio.hidden = false;
-      vacioTxt.textContent = "No encontrado: no hay fotos con el dorsal " + n + ". A veces el dorsal no se lee bien (tapado, de lado…). Busca en la galería por la hora de tu salida.";
+      vacioTxt.innerHTML = "<b>No encontrado</b><br>Ninguna foto tiene el dorsal " + n + ". A veces no se lee (tapado, de lado…): busca tu foto por la hora de tu salida.";
       estado.innerHTML = "Dorsal <b>" + n + "</b>: no encontrado";
     } else {
       vacio.hidden = true; galeria.hidden = false;
@@ -166,6 +167,7 @@
       b.type = "button"; b.className = "chip" + (x.k === selK ? " sel" : ""); b.dataset.k = x.k;
       b.setAttribute("aria-pressed", x.k === selK ? "true" : "false");
       b.textContent = etiqueta(f, x.k);
+      b.setAttribute("aria-label", "Ver fotos " + (x.k.charAt(0) === "g" ? "de " + etiqueta(f, x.k).toLowerCase() : "del dorsal " + x.k));
       vChips.appendChild(b);
     });
   }
@@ -226,8 +228,9 @@
     vBlur.src = "thumbs/" + encodeURIComponent(f.f); vBlur.hidden = false;
     vImg.classList.add("cargando");
     vImg.src = "fotos/" + encodeURIComponent(f.f);
-    vImg.alt = "Foto " + (i + 1) + " de " + vLista.length;
     vTit.textContent = f.d && f.d.length ? "Dorsal " + f.d.join(" · ") : "Sin dorsal";
+    vImg.alt = vTit.textContent + (f.t ? ", " + hora(f.t) : "") + " (" + (i + 1) + " de " + vLista.length + ")";
+    vCanvas.setAttribute("aria-label", vImg.alt + ", encuadre 4:5");
     vSub.textContent = (i + 1) + " / " + vLista.length + (f.t ? " · " + hora(f.t) : "");
     vEncLabel.classList.toggle("no", !cropDe(f));
     vCanvas.hidden = true; vImg.hidden = false;
@@ -257,6 +260,10 @@
     vCanvas.hidden = false; vImg.hidden = true;
   }
   vImg.addEventListener("load", function () { vImg.classList.remove("cargando"); vBlur.hidden = true; pintarRecorte(); prepararCompartir(); });
+  vImg.addEventListener("error", function () {
+    if (visor.hidden || !vImg.getAttribute("src")) return;
+    avisar("No se ha podido cargar la foto. Revisa tu conexión.");
+  });
   vEnc.addEventListener("change", function () {
     encuadre = vEnc.checked;
     try { localStorage.setItem("encuadre", encuadre ? "1" : "0"); } catch (e) {}
@@ -290,24 +297,48 @@
   }
   function nombreArchivo(f, recortado) { return nombreDescarga(f).replace(/\.jpg$/i, recortado && cropDe(f) ? "_encuadre.jpg" : ".jpg"); }
 
-  function abrir(i) {
-    vLista = lista;
-    visor.hidden = false; document.body.classList.add("bloqueado");
+  // mientras el visor está abierto, el resto de la página no se puede enfocar ni lo lee el lector de pantalla
+  var fondo = [document.querySelector("header.top"), document.querySelector("main"), document.querySelector("footer.pie")], origen = null;
+  function bloquearFondo(si) {
+    fondo.forEach(function (el) {
+      if (!el) return;
+      el.inert = si;
+      if (si) el.setAttribute("aria-hidden", "true"); else el.removeAttribute("aria-hidden");
+    });
+  }
+  function abrir(i, desde) {
+    vLista = lista; origen = desde || document.activeElement;
+    visor.hidden = false; document.body.classList.add("bloqueado"); bloquearFondo(true);
     if (history.pushState && !(history.state && history.state.visor)) history.pushState({ visor: true }, "", location.href);
     mostrar(i); $("vCerrar").focus();
   }
-  function cerrarUI() { visor.hidden = true; document.body.classList.remove("bloqueado"); vImg.removeAttribute("src"); aviso.hidden = true; }
+  function cerrarUI() {
+    visor.hidden = true; document.body.classList.remove("bloqueado"); bloquearFondo(false);
+    vImg.removeAttribute("src"); aviso.hidden = true;
+    if (origen && origen.isConnected) origen.focus({ preventScroll: true });   // volver a la miniatura abierta
+    origen = null;
+  }
   function cerrar() { if (history.state && history.state.visor) history.back(); else cerrarUI(); }
   window.addEventListener("popstate", function () { if (!visor.hidden) cerrarUI(); });
 
   galeria.addEventListener("click", function (e) {
-    var b = e.target.closest(".miniatura"); if (b) abrir(+b.dataset.i);
+    var b = e.target.closest(".miniatura"); if (b && b.dataset.i) abrir(+b.dataset.i, b);
   });
   vPrev.onclick = function () { mostrar(actual - 1); };
   vNext.onclick = function () { mostrar(actual + 1); };
   $("vCerrar").onclick = cerrar;
   document.addEventListener("keydown", function (e) {
     if (visor.hidden) return;
+    if (e.key === "Tab") {   // el foco no sale del visor
+      var foc = Array.prototype.filter.call(visor.querySelectorAll("button, a[href], input"), function (el) {
+        return !el.disabled && (el.offsetWidth || el.offsetHeight || el.type === "checkbox") && !el.closest("[hidden], .no");
+      });
+      if (!foc.length) return;
+      var pri = foc[0], ult = foc[foc.length - 1], dentro = visor.contains(document.activeElement);
+      if (e.shiftKey && (document.activeElement === pri || !dentro)) { e.preventDefault(); ult.focus(); }
+      else if (!e.shiftKey && (document.activeElement === ult || !dentro)) { e.preventDefault(); pri.focus(); }
+      return;
+    }
     if (e.key === "ArrowLeft") mostrar(actual - 1);
     else if (e.key === "ArrowRight") mostrar(actual + 1);
     else if (e.key === "Escape") cerrar();
@@ -463,6 +494,7 @@
   $("buscar").addEventListener("submit", function (e) { e.preventDefault(); clearTimeout(temporizador); input.blur(); buscar(input.value); });
   input.addEventListener("input", function () {
     clearTimeout(temporizador);
+    if (/\D/.test(input.value)) input.value = input.value.replace(/\D/g, "");   // solo números
     limpiar.hidden = !input.value;
     if (!input.value) { buscar(""); return; }
     temporizador = setTimeout(function () { buscar(input.value); }, 450);
@@ -485,13 +517,22 @@
     var h = decodeURIComponent((location.hash || "").slice(1));
     if (todas.length && /^\d{1,4}$/.test(h) && h !== input.value) { if (!visor.hidden) cerrarUI(); input.value = h; buscar(h, true); }
   });
-  fetch("data/dorsales.json", { credentials: "same-origin" })
-    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function (d) {
-      todas = (d.fotos || []).slice();
-      verTodas();
-      var h = decodeURIComponent((location.hash || "").slice(1));
-      if (/^\d{1,4}$/.test(h)) { input.value = h; buscar(h, true); }
-    })
-    .catch(function () { estado.textContent = "No se han podido cargar las fotos. Recarga la página en un momento."; });
+  var fallo = $("fallo");
+  function cargarDatos() {
+    fallo.hidden = true; galeria.hidden = false; galeria.setAttribute("aria-busy", "true"); estado.textContent = "Cargando fotos…";
+    return fetch("data/dorsales.json", { credentials: "same-origin" })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (d) {
+        todas = (d.fotos || []).slice();
+        verTodas();
+        var h = decodeURIComponent((location.hash || "").slice(1));
+        if (/^\d{1,4}$/.test(h)) { input.value = h; buscar(h, true); }
+      })
+      .catch(function () {   // sin datos: quitar el esqueleto y ofrecer reintentar
+        galeria.hidden = true; galeria.removeAttribute("aria-busy");
+        estado.textContent = ""; fallo.hidden = false;
+      });
+  }
+  $("reintentar").addEventListener("click", function () { input.focus({ preventScroll: true }); cargarDatos(); });
+  cargarDatos();
 })();
