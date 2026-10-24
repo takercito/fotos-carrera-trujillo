@@ -38,8 +38,11 @@
 
 <div id="visor" class="visor" role="dialog" aria-modal="true" aria-label="Foto" hidden>
   <div class="visor-barra">
-    <span id="vInfo" class="v-info"></span>
-    <button type="button" id="vCerrar" class="v-btn" aria-label="Cerrar">✕</button>
+    <p class="v-info"><b id="vTit"></b><span id="vSub"></span></p>
+    <label class="interruptor" id="vEncLabel" title="Recorte sugerido 4:5 para redes"><input type="checkbox" id="vEncuadre"><span class="pista"></span>Encuadre</label>
+    <button type="button" id="vCerrar" class="v-btn" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
   </div>
   <div class="visor-foto" id="vZona">
     <img id="vImg" alt="">
@@ -47,14 +50,33 @@
     <button type="button" id="vPrev" class="v-nav prev" aria-label="Anterior">‹</button>
     <button type="button" id="vNext" class="v-nav next" aria-label="Siguiente">›</button>
   </div>
+  <section id="vRel" class="relacionadas" aria-label="Más fotos de este corredor" hidden>
+    <div class="rel-cab"><h2 id="vRelTit" class="rel-tit"></h2>
+      <div id="vChips" class="chips" role="group" aria-label="Corredores en esta foto" hidden></div></div>
+    <div id="vRelTira" class="rel-tira"></div>
+  </section>
   <div class="visor-pie">
-    <label class="interruptor" id="vEncLabel"><input type="checkbox" id="vEncuadre"><span class="pista"></span>Encuadre</label>
-    <a id="vDesc" class="boton descargar" href="#" download>⬇ Descargar</a>
+    <div class="acciones">
+      <a id="vDesc" class="accion primaria" href="#" download>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="giro" aria-hidden="true"></span><span class="txt">Descargar foto</span>
+      </a>
+      <button type="button" id="vComp" class="accion secundaria">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M8 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="giro" aria-hidden="true"></span><span class="txt">Compartir</span>
+      </button>
+    </div>
+    <button type="button" id="vTodas" class="accion terciaria" hidden>
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h4m8 0h4M4 7v12a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7M12 4v11m0 0-4-4m4 4 4-4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="giro" aria-hidden="true"></span><span class="txt">Descargar todas</span>
+    </button>
   </div>
 </div>
+<div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
 
 <script src="config.js"></script>
 <script src="watermark.js"></script>
+<script src="vendor/fflate.min.js" defer></script>
 <script src="app.js"></script>
 </body>
 </html>
