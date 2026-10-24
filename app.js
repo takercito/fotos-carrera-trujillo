@@ -13,6 +13,8 @@
   var PREFIJO = cfg.DOWNLOAD_PREFIX || "carrera";
   var conLogo = !!window.Watermark;   // logo del club obligatorio: canvas en visor y descargas (CSS encima mientras se prepara)
   var SIN_LOGO = "No se pudo preparar la foto, inténtalo de nuevo";
+  // Analítica sin cookies (GoatCounter): solo eventos genéricos, nunca el dorsal. Si no carga o falla, no afecta a nada.
+  function contar(p) { try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: "evento/" + p, title: p, event: true }); } catch (e) {} }
 
   function hora(t) { return t ? t.slice(11, 16) : ""; }
   function textoDorsales(d) {   // con más de 3 se abrevia ("601 · 603 +3"); si se busca uno de ellos, ese va primero
@@ -101,10 +103,17 @@
     estado.innerHTML = "<b>" + todas.length + " fotos</b> · ordenadas por hora";
   }
 
-  function buscar(valor, desdeHash) {
+  // una búsqueda = un evento: al enviarla (Intro, enlace #511) o cuando el número se queda quieto 1,5 s (no por tecla)
+  var tContar = null, contada = null;
+  function contarBusqueda(n, hay, ya) {
+    clearTimeout(tContar);
+    var f = function () { if (n !== contada) { contada = n; contar(hay ? "buscar-dorsal" : "buscar-dorsal/sin-resultado"); } };
+    if (ya) f(); else tContar = setTimeout(f, 1500);
+  }
+  function buscar(valor, desdeHash, enviada) {
     var v = String(valor || "").replace(/\D/g, "").replace(/^0+/, "");
     limpiar.hidden = !input.value;
-    if (!v) { if (filtro !== null) verTodas(); actualizarHash(""); return; }
+    if (!v) { clearTimeout(tContar); contada = null; if (filtro !== null) verTodas(); actualizarHash(""); return; }
     var n = parseInt(v, 10);
     filtro = n; reloj.hidden = true; burbuja.hidden = true;
     var res = todas.filter(function (f) { return f.d && f.d.indexOf(n) !== -1; });
@@ -119,6 +128,7 @@
       estado.innerHTML = "<b>" + res.length + (res.length === 1 ? " foto" : " fotos") + "</b> del dorsal " + n;
     }
     if (!desdeHash) actualizarHash(String(n));
+    contarBusqueda(n, res.length > 0, enviada || desdeHash);
   }
 
   // ---------- barra de hora (scrubber): eje = hora de captura de la primera a la última foto
@@ -488,6 +498,7 @@
     encuadre = vEnc.checked;
     try { localStorage.setItem("encuadre", encuadre ? "1" : "0"); } catch (e) {}
     pintarRecorte(); archivoListo = null; prepararCompartir();
+    if (encuadre) contar("encuadre-on");
   });
 
   function guardarBlob(blob, nombre) {
@@ -519,6 +530,7 @@
     visor.hidden = false; document.body.classList.add("bloqueado"); bloquearFondo(true);
     if (history.pushState && !(history.state && history.state.visor)) history.pushState({ visor: true }, "", location.href);
     cargarLogoVisor(); mostrar(i); $("vCerrar").focus();
+    contar("abrir-foto");
   }
   function cerrarUI() {
     visor.hidden = true; document.body.classList.remove("bloqueado"); bloquearFondo(false);
@@ -572,6 +584,7 @@
   vDesc.addEventListener("click", function () {
     var f = vLista[actual], rec = !!recorteActivo();
     if (!f || vDesc.hasAttribute("aria-busy")) return;
+    contar("descargar-foto");
     ocupado(vDesc, true, "Preparando…");   // JPEG generado aquí: logo abajo a la derecha (del recorte 4:5 si hay Encuadre)
     blobDeFoto(f, rec).then(function (b) { guardarBlob(b, nombreArchivo(f, rec)); }, function () { avisar(SIN_LOGO); })
       .then(function () { ocupado(vDesc, false); });
@@ -605,6 +618,7 @@
   }
   vComp.addEventListener("click", function () {
     var f = vLista[actual]; if (!f) return;
+    contar("compartir");
     var texto = "Fotos carrera infantil · Trujillo · 24/10/2026", u = urlSitio(f);
     var rec = !!recorteActivo();
     if (puedeCompartirArchivos()) {
@@ -648,6 +662,8 @@
         .catch(function (err) { if (err && err.name !== "AbortError") { paqueteListo = null; ocupado(vTodas, false); zipYGuardar(fl, f); } });
       return;
     }
+    if (vTodas.hasAttribute("aria-busy")) return;   // ya se está preparando
+    contar("descargar-todas");
     var n = rel.length, hechas = 0, rec = !!encuadre;
     ocupado(vTodas, true, "Preparando 0/" + n + "…");
     var files = new Array(n), cola = rel.map(function (x, k) { return k; });
@@ -692,7 +708,7 @@
   }
 
   // ---------- búsqueda
-  $("buscar").addEventListener("submit", function (e) { e.preventDefault(); clearTimeout(temporizador); input.blur(); buscar(input.value); });
+  $("buscar").addEventListener("submit", function (e) { e.preventDefault(); clearTimeout(temporizador); input.blur(); buscar(input.value, false, true); });
   input.addEventListener("input", function () {
     clearTimeout(temporizador);
     if (/\D/.test(input.value)) input.value = input.value.replace(/\D/g, "");   // solo números
@@ -721,7 +737,8 @@
   var fallo = $("fallo");
   function cargarDatos() {
     fallo.hidden = true; galeria.hidden = false; galeria.setAttribute("aria-busy", "true"); estado.textContent = "Cargando fotos…";
-    return fetch("data/dorsales.json", { credentials: "same-origin" })
+    var temprana = window.DATOS_TEMPRANOS; window.DATOS_TEMPRANOS = null;   // pedido en <head>; los reintentos piden de nuevo
+    return (temprana || fetch("data/dorsales.json", { credentials: "same-origin" }))
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (d) {
         todas = (d.fotos || []).slice();
