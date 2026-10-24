@@ -15,23 +15,34 @@
   function hora(t) { return t ? t.slice(11, 16) : ""; }
 
   // Scroll infinito: se pintan lotes de LOTE miniaturas cuando el centinela se acerca a la pantalla.
-  var LOTE = cfg.BATCH_SIZE || 24, pintadas = 0, cabeceras = false, ultimaCab = null;
+  // Primer lote pequeño (pantalla visible al instante); luego lotes de LOTE al acercarse al final.
+  // Las miniaturas solo se piden cuando están a <MARGEN_IMG de la pantalla (ahorra datos en móvil).
+  var LOTE_INICIAL = 12, LOTE = cfg.BATCH_SIZE || 18, pintadas = 0, cabeceras = false, ultimaCab = null;
   var centinela = document.createElement("div"); centinela.className = "centinela"; centinela.setAttribute("aria-hidden", "true");
   galeria.after(centinela);
   var observador = "IntersectionObserver" in window ? new IntersectionObserver(function (es) {
     if (es[0].isIntersecting) masFotos();
-  }, { rootMargin: "1200px 0px" }) : null;
+  }, { rootMargin: "800px 0px" }) : null;
   if (observador) observador.observe(centinela);
+  function cargarMini(img) {
+    if (!img.dataset.src) return;
+    img.onload = function () { img.classList.add("ok"); };
+    img.onerror = function () { img.classList.add("ok"); };
+    img.src = img.dataset.src; delete img.dataset.src;
+  }
+  var obsImg = "IntersectionObserver" in window ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { obsImg.unobserve(e.target); cargarMini(e.target); } });
+  }, { rootMargin: "150px 0px" }) : null;
 
   function pintar(fotos, conCabeceras) {
     lista = fotos; pintadas = 0; cabeceras = conCabeceras; ultimaCab = null;
-    galeria.textContent = "";
+    galeria.textContent = ""; galeria.removeAttribute("aria-busy");
     masFotos();
   }
 
   function masFotos() {
     if (pintadas >= lista.length || galeria.hidden) return;
-    var frag = document.createDocumentFragment(), fin = Math.min(lista.length, pintadas + LOTE);
+    var frag = document.createDocumentFragment(), fin = Math.min(lista.length, pintadas + (pintadas ? LOTE : LOTE_INICIAL));
     for (var i = pintadas; i < fin; i++) {
       var f = lista[i];
       if (cabeceras) {
@@ -44,7 +55,9 @@
       var b = document.createElement("button");
       b.type = "button"; b.className = "miniatura"; b.dataset.i = i;
       var img = document.createElement("img");
-      img.src = "thumbs/" + encodeURIComponent(f.f); img.loading = "lazy"; img.decoding = "async";
+      img.dataset.src = "thumbs/" + encodeURIComponent(f.f); img.loading = "lazy"; img.decoding = "async";
+      img.width = 288; img.height = 360;
+      if (obsImg) obsImg.observe(img); else cargarMini(img);
       img.alt = "Foto " + (i + 1) + (f.t ? " · " + hora(f.t) : "");
       b.appendChild(img);
       if (f.t) { var s = document.createElement("span"); s.className = "t"; s.textContent = hora(f.t); b.appendChild(s); }
@@ -56,7 +69,8 @@
     if (!observador) { if (pintadas < lista.length) setTimeout(masFotos, 50); }
     else requestAnimationFrame(function () {
       var r = centinela.getBoundingClientRect();
-      if (r.top < window.innerHeight + 1200) masFotos();
+      if (r.top < window.innerHeight + 800) masFotos();
+      else { observador.unobserve(centinela); observador.observe(centinela); }   // nuevo aviso al seguir bajando
     });
   }
 
@@ -93,7 +107,7 @@
   // ---------- visor
   // vLista = fotos que recorre el visor (la galería/búsqueda, o la tira de un corredor si se salta a ella)
   var vLista = [], vTit = $("vTit"), vSub = $("vSub"), vRel = $("vRel"), vRelTit = $("vRelTit"), vRelTira = $("vRelTira");
-  var vChips = $("vChips"), vComp = $("vComp"), vTodas = $("vTodas"), aviso = $("aviso"), relActual = [];
+  var vBlur = $("vBlur"), vChips = $("vChips"), vComp = $("vComp"), vTodas = $("vTodas"), aviso = $("aviso"), relActual = [];
   var TITULO = document.title, tAviso = null;
 
   function nombreDescarga(f) {
@@ -210,6 +224,8 @@
     var f = vLista[i];
     archivoListo = null;
     selK = elegirCorredor(f);
+    vBlur.src = "thumbs/" + encodeURIComponent(f.f); vBlur.hidden = false;
+    vImg.classList.add("cargando");
     vImg.src = "fotos/" + encodeURIComponent(f.f);
     vImg.alt = "Foto " + (i + 1) + " de " + vLista.length;
     vTit.textContent = f.d && f.d.length ? "Dorsal " + f.d.join(" · ") : "Sin dorsal";
@@ -241,7 +257,7 @@
     vCanvas.getContext("2d").drawImage(vImg, sx, sy, sw, sh, 0, 0, sw, sh);
     vCanvas.hidden = false; vImg.hidden = true;
   }
-  vImg.addEventListener("load", function () { pintarRecorte(); prepararCompartir(); });
+  vImg.addEventListener("load", function () { vImg.classList.remove("cargando"); vBlur.hidden = true; pintarRecorte(); prepararCompartir(); });
   vEnc.addEventListener("change", function () {
     encuadre = vEnc.checked;
     try { localStorage.setItem("encuadre", encuadre ? "1" : "0"); } catch (e) {}
@@ -432,8 +448,9 @@
       var entradas = {};
       files.forEach(function (fl, k) { entradas[fl.name] = [new Uint8Array(bufs[k]), { level: 0 }]; });   // JPEG: sin recomprimir
       return new Promise(function (ok, mal) {
-        if (!window.fflate) return mal(new Error("fflate"));
-        window.fflate.zip(entradas, { level: 0 }, function (err, data) { err ? mal(err) : ok(data); });
+        cargarFflate().then(function () {
+          window.fflate.zip(entradas, { level: 0 }, function (err, data) { err ? mal(err) : ok(data); });
+        }, mal);
       });
     }).then(function (data) {
       guardarBlob(new Blob([data], { type: "application/zip" }), nombreZip());
@@ -452,7 +469,22 @@
   limpiar.addEventListener("click", function () { input.value = ""; buscar(""); input.focus(); });
   $("verTodas").addEventListener("click", function () { input.value = ""; buscar(""); verTodas(); });
 
-  fetch("data/dorsales.json", { cache: "no-cache" })
+  // fflate (ZIP) solo se descarga cuando alguien pulsa "Descargar todas"
+  var pFflate = null;
+  function cargarFflate() {
+    if (window.fflate) return Promise.resolve();
+    return pFflate || (pFflate = new Promise(function (ok, mal) {
+      var s = document.createElement("script"); s.src = "vendor/fflate.min.js";
+      s.onload = function () { window.fflate ? ok() : mal(new Error("fflate")); };
+      s.onerror = function () { pFflate = null; mal(new Error("fflate")); };
+      document.head.appendChild(s);
+    }));
+  }
+  window.addEventListener("hashchange", function () {
+    var h = decodeURIComponent((location.hash || "").slice(1));
+    if (todas.length && /^\d{1,4}$/.test(h) && h !== input.value) { if (!visor.hidden) cerrarUI(); input.value = h; buscar(h, true); }
+  });
+  fetch("data/dorsales.json", { credentials: "same-origin" })
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (d) {
       todas = (d.fotos || []).slice();

@@ -25,7 +25,8 @@ main{padding:10px 6px 20px;max-width:1400px;margin:0 auto}
 .hora:first-child{margin-top:2px}
 .miniatura{position:relative;display:block;padding:0;border:0;background:#dde1e6;aspect-ratio:1;overflow:hidden;cursor:pointer;border-radius:6px}
 @media (min-width:600px){.miniatura{border-radius:10px}}
-.miniatura img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.miniatura img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .25s,transform .2s}
+.miniatura img.ok{opacity:1}
 .miniatura:hover img{transform:scale(1.04)}
 .miniatura .t{position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.55);color:#fff;font-size:.72rem;font-weight:600;
   padding:1px 6px;border-radius:999px;font-variant-numeric:tabular-nums}
@@ -135,3 +136,10 @@ body.bloqueado{overflow:hidden}
 .chip.sel{background:#fff;color:#15181d;border-color:#fff}
 .chip:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .rel-cab{margin-bottom:6px}
+
+/* carga rápida: esqueleto antes de los datos, foto borrosa antes de la grande */
+.esqueleto{cursor:default;background:linear-gradient(100deg,#dde1e6 40%,#eceff2 50%,#dde1e6 60%) #dde1e6;background-size:200% 100%;animation:brillo 1.2s linear infinite}
+@keyframes brillo{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.esqueleto{animation:none}}
+.visor-foto .v-blur{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;filter:blur(14px);transform:scale(1.03);opacity:.85;pointer-events:none}
+.visor-foto img.cargando{opacity:0}
